@@ -1,0 +1,12 @@
+services:
+  simulation:
+    build: .
+    container_name: agentic-web-sim
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./app:/app/app
+    restart: unless-stopped
+    # Forward SIGTERM/SIGINT to streamlit (python as PID 1 often ignores them → "Error while Stopping")
+    init: true
+    stop_grace_period: 30s
