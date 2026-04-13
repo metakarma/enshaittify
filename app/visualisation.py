@@ -23,15 +23,16 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r},{g},{b},{alpha})"
 
 
-# Shared layout: left Sankey uses full height; right Sankey height scales by (P→O total)/(O→P total).
-# Do not clamp the right chart to a large minimum — that hides the magnitude gap (e.g. 10% vs 38% TAM).
+# Shared layout: both Sankeys use the same pixel height; the smaller cumulative direction gets an
+# invisible "ghost" flow so total throughput matches max(O→P, P→O)—real ribbons scale proportionally.
 _SANKEY_HEIGHT = 420
-_SANKEY_FLOOR_DRAWN = 72  # tiny flows still need a readable strip; keep well below ~½ reference height
-_SANKEY_EMPTY_MIN = 200  # placeholder / no-data layouts
 _SANKEY_MARGIN = dict(l=28, r=28, t=52, b=28)
 _SANKEY_X_LEFT = 0.02
 _SANKEY_X_RIGHT = 0.98
 _SANKEY_Y_PLATFORM = 0.5
+_SANKEY_GHOST_Y = 0.03  # fixed node for balance flow (label empty; links invisible)
+_GHOST_LINK = "rgba(0,0,0,0)"
+_GHOST_NODE = "rgba(255,255,255,0)"
 
 
 def _sankey_type_y_by_key(keys: List[str]) -> dict[str, float]:
@@ -308,11 +309,32 @@ def _sankey_totals(df: pd.DataFrame) -> tuple[float, float]:
     return o2p, p2o
 
 
-def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
-    """Cumulative mass that switched open → platform, by consumer type (reference height for the pair)."""
+def sankey_pair_scale_reference(df: pd.DataFrame) -> float:
+    """Max cumulative switch volume across the two directions (shared Sankey throughput scale)."""
+    o2p, p2o = _sankey_totals(df)
+    return max(o2p, p2o, 1e-15)
+
+
+def _sankey_use_ghost_padding(ref: float, real_sum: float) -> tuple[float, bool]:
+    ghost = max(0.0, float(ref) - float(real_sum))
+    tol = max(ref * 1e-12, 1e-18)
+    return ghost, ghost > tol
+
+
+def fig_sankey_open_to_platform(
+    df: pd.DataFrame,
+    *,
+    scale_reference: float | None = None,
+) -> go.Figure:
+    """Cumulative mass that switched open → platform. Optional ghost flow pads totals to ``scale_reference``."""
     keys = _arriving_type_keys(df)
     y_by_key = _sankey_type_y_by_key(keys)
     tot_o2p, _ = _sankey_totals(df)
+    ref = (
+        float(scale_reference)
+        if scale_reference is not None and float(scale_reference) > 1e-15
+        else sankey_pair_scale_reference(df)
+    )
     pairs = [(k, float(df[f"switch_OtoP_{k}"].sum())) for k in keys if f"switch_OtoP_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
     if not pairs:
@@ -330,7 +352,7 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
             title=dict(
                 text=(
                     "Cumulative switchers: open → platform (by type)"
-                    f"<br><sup>Total volume: {tot_o2p:.2%} of TAM (reference for chart height)</sup>"
+                    f"<br><sup>Total volume: {tot_o2p:.2%} of TAM</sup>"
                 ),
                 x=0.5,
                 xref="paper",
@@ -343,17 +365,40 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
             yaxis=dict(visible=False),
         )
         return fig
+    real_sum = float(sum(v for _, v in pairs))
+    ghost, use_ghost = _sankey_use_ghost_padding(ref, real_sum)
     n_left = len(pairs)
-    labels = [f"{k.replace('_', ' ').title()}<br>(on open)" for k, _ in pairs] + ["Platform<br>(all types)"]
-    sources = list(range(n_left))
-    targets = [n_left] * n_left
-    values = [v for _, v in pairs]
-    node_x = [_SANKEY_X_LEFT] * n_left + [_SANKEY_X_RIGHT]
-    node_y = [y_by_key[k] for k, _ in pairs] + [_SANKEY_Y_PLATFORM]
     n_keys = max(len(keys), 1)
     colors_left = [
         f"rgba(46, 125, 50, {0.32 + 0.14 * (keys.index(k) / max(n_keys - 1, 1))})" for k, _ in pairs
     ]
+    link_gray = "rgba(100, 100, 100, 0.35)"
+    if use_ghost:
+        gidx = n_left
+        pidx = n_left + 1
+        labels = [f"{k.replace('_', ' ').title()}<br>(on open)" for k, _ in pairs] + ["", "Platform<br>(all types)"]
+        node_x = [_SANKEY_X_LEFT] * n_left + [_SANKEY_X_LEFT, _SANKEY_X_RIGHT]
+        node_y = [y_by_key[k] for k, _ in pairs] + [_SANKEY_GHOST_Y, _SANKEY_Y_PLATFORM]
+        node_color = colors_left + [_GHOST_NODE, "rgba(198, 40, 40, 0.45)"]
+        sources = list(range(n_left)) + [gidx]
+        targets = [pidx] * n_left + [pidx]
+        values = [v for _, v in pairs] + [ghost]
+        link_colors = [link_gray] * n_left + [_GHOST_LINK]
+    else:
+        pidx = n_left
+        labels = [f"{k.replace('_', ' ').title()}<br>(on open)" for k, _ in pairs] + ["Platform<br>(all types)"]
+        node_x = [_SANKEY_X_LEFT] * n_left + [_SANKEY_X_RIGHT]
+        node_y = [y_by_key[k] for k, _ in pairs] + [_SANKEY_Y_PLATFORM]
+        node_color = colors_left + ["rgba(198, 40, 40, 0.45)"]
+        sources = list(range(n_left))
+        targets = [pidx] * n_left
+        values = [v for _, v in pairs]
+        link_colors = [link_gray] * n_left
+    pad_note = (
+        f" — invisible balance to {ref:.2%} TAM (max of the two directions)"
+        if use_ghost
+        else ""
+    )
     fig = go.Figure(
         data=[
             go.Sankey(
@@ -365,13 +410,13 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
                     label=labels,
                     x=node_x,
                     y=node_y,
-                    color=colors_left + ["rgba(198, 40, 40, 0.45)"],
+                    color=node_color,
                 ),
                 link=dict(
                     source=sources,
                     target=targets,
                     value=values,
-                    color=[f"rgba(100, 100, 100, 0.35)" for _ in values],
+                    color=link_colors,
                 ),
             )
         ]
@@ -380,7 +425,7 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
         title=dict(
             text=(
                 "Cumulative switchers: open → platform (by type)"
-                f"<br><sup>Total volume: {tot_o2p:.2%} of TAM — right-hand chart height scales vs this total</sup>"
+                f"<br><sup>Total volume: {tot_o2p:.2%} of TAM{pad_note}</sup>"
             ),
             x=0.5,
             xref="paper",
@@ -397,27 +442,19 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
 def fig_sankey_platform_to_open(
     df: pd.DataFrame,
     *,
-    volume_reference: float | None = None,
+    scale_reference: float | None = None,
 ) -> go.Figure:
-    """Cumulative mass that switched platform → open. Figure height is (P→O total)/(reference) × reference height.
-
-    Pass ``volume_reference`` = open→platform cumulative total so a smaller P→O flow yields a visibly shorter chart.
-    """
+    """Cumulative mass that switched platform → open. Optional ghost target pads totals to ``scale_reference``."""
     keys = _arriving_type_keys(df)
     y_by_key = _sankey_type_y_by_key(keys)
-    tot_o2p, tot_p2o = _sankey_totals(df)
-    # Scale height vs open→platform total when available so ~10% vs ~38% TAM is visibly shorter/taller.
-    if volume_reference is not None and volume_reference > 1e-15:
-        ref = volume_reference
-    elif tot_o2p > 1e-15:
-        ref = tot_o2p
-    else:
-        ref = max(tot_p2o, 1e-15)
-    ratio = tot_p2o / ref if ref > 1e-15 else 1.0
-    raw_h = int(round(_SANKEY_HEIGHT * ratio)) if ref > 1e-15 else _SANKEY_HEIGHT
+    _, tot_p2o = _sankey_totals(df)
+    ref = (
+        float(scale_reference)
+        if scale_reference is not None and float(scale_reference) > 1e-15
+        else sankey_pair_scale_reference(df)
+    )
     pairs = [(k, float(df[f"switch_PtoO_{k}"].sum())) for k in keys if f"switch_PtoO_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
-    plot_height = max(_SANKEY_FLOOR_DRAWN, raw_h) if pairs else max(_SANKEY_EMPTY_MIN, raw_h)
     if not pairs:
         fig = go.Figure()
         fig.add_annotation(
@@ -433,33 +470,55 @@ def fig_sankey_platform_to_open(
             title=dict(
                 text=(
                     "Cumulative switchers: platform → open (by type)"
-                    f"<br><sup>Total volume: {tot_p2o:.2%} of TAM"
-                    f" (height = {ratio:.1%} of left chart if ref = open→platform total)</sup>"
+                    f"<br><sup>Total volume: {tot_p2o:.2%} of TAM</sup>"
                 ),
                 x=0.5,
                 xref="paper",
                 xanchor="center",
             ),
-            height=plot_height,
+            height=_SANKEY_HEIGHT,
             template="plotly_white",
             margin=_SANKEY_MARGIN,
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
         )
         return fig
+    real_sum = float(sum(v for _, v in pairs))
+    ghost, use_ghost = _sankey_use_ghost_padding(ref, real_sum)
     n_right = len(pairs)
-    labels = ["Platform<br>(all types)"] + [
-        f"{k.replace('_', ' ').title()}<br>(to open)" for k, _ in pairs
-    ]
-    sources = [0] * n_right
-    targets = list(range(1, n_right + 1))
-    values = [v for _, v in pairs]
-    node_x = [_SANKEY_X_LEFT] + [_SANKEY_X_RIGHT] * n_right
-    node_y = [_SANKEY_Y_PLATFORM] + [y_by_key[k] for k, _ in pairs]
     n_keys = max(len(keys), 1)
     colors_right = [
         f"rgba(21, 101, 192, {0.32 + 0.14 * (keys.index(k) / max(n_keys - 1, 1))})" for k, _ in pairs
     ]
+    link_gray = "rgba(100, 100, 100, 0.35)"
+    if use_ghost:
+        gidx = n_right + 1
+        labels = ["Platform<br>(all types)"] + [
+            f"{k.replace('_', ' ').title()}<br>(to open)" for k, _ in pairs
+        ] + [""]
+        node_x = [_SANKEY_X_LEFT] + [_SANKEY_X_RIGHT] * n_right + [_SANKEY_X_RIGHT]
+        node_y = [_SANKEY_Y_PLATFORM] + [y_by_key[k] for k, _ in pairs] + [_SANKEY_GHOST_Y]
+        node_color = ["rgba(198, 40, 40, 0.45)"] + colors_right + [_GHOST_NODE]
+        sources = [0] * (n_right + 1)
+        targets = list(range(1, n_right + 1)) + [gidx]
+        values = [v for _, v in pairs] + [ghost]
+        link_colors = [link_gray] * n_right + [_GHOST_LINK]
+    else:
+        labels = ["Platform<br>(all types)"] + [
+            f"{k.replace('_', ' ').title()}<br>(to open)" for k, _ in pairs
+        ]
+        node_x = [_SANKEY_X_LEFT] + [_SANKEY_X_RIGHT] * n_right
+        node_y = [_SANKEY_Y_PLATFORM] + [y_by_key[k] for k, _ in pairs]
+        node_color = ["rgba(198, 40, 40, 0.45)"] + colors_right
+        sources = [0] * n_right
+        targets = list(range(1, n_right + 1))
+        values = [v for _, v in pairs]
+        link_colors = [link_gray] * n_right
+    pad_note = (
+        f" — invisible balance to {ref:.2%} TAM (max of the two directions)"
+        if use_ghost
+        else ""
+    )
     fig = go.Figure(
         data=[
             go.Sankey(
@@ -471,13 +530,13 @@ def fig_sankey_platform_to_open(
                     label=labels,
                     x=node_x,
                     y=node_y,
-                    color=["rgba(198, 40, 40, 0.45)"] + colors_right,
+                    color=node_color,
                 ),
                 link=dict(
                     source=sources,
                     target=targets,
                     value=values,
-                    color=[f"rgba(100, 100, 100, 0.35)" for _ in values],
+                    color=link_colors,
                 ),
             )
         ]
@@ -486,13 +545,13 @@ def fig_sankey_platform_to_open(
         title=dict(
             text=(
                 "Cumulative switchers: platform → open (by type)"
-                f"<br><sup>Total volume: {tot_p2o:.2%} of TAM — chart height {ratio:.1%} of left (ref {tot_o2p:.2%})</sup>"
+                f"<br><sup>Total volume: {tot_p2o:.2%} of TAM{pad_note}</sup>"
             ),
             x=0.5,
             xref="paper",
             xanchor="center",
         ),
-        height=plot_height,
+        height=_SANKEY_HEIGHT,
         font=dict(size=12),
         template="plotly_white",
         margin=_SANKEY_MARGIN,

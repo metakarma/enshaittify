@@ -28,6 +28,7 @@ from app.visualisation import (
     fig_sankey_platform_to_open,
     fig_share_of_adopters,
     fig_signal_quality,
+    sankey_pair_scale_reference,
     summary_metrics,
 )
 
@@ -43,26 +44,6 @@ def _init_state() -> None:
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
-
-
-def _plotly_match_figure_height(fig) -> None:
-    """Render Plotly at the figure's layout height so shorter charts stay shorter.
-
-    In a multi-column row, Streamlit can stretch chart elements to the row's max height unless
-    the element height is pinned — which hides intentional magnitude scaling (e.g. Sankey pair).
-    """
-    h = fig.layout.height
-    for kwargs in (
-        dict(width="stretch", height=int(h)) if h is not None else dict(width="stretch"),
-        dict(use_container_width=True, height=int(h)) if h is not None else dict(use_container_width=True),
-        dict(use_container_width=True),
-    ):
-        try:
-            st.plotly_chart(fig, **kwargs)
-            return
-        except TypeError:
-            continue
-    st.plotly_chart(fig)
 
 
 def _apply_preset() -> None:
@@ -469,18 +450,19 @@ with flow_r:
 st.caption(
     "**Sankeys:** cumulative **switching volume** (sum of monthly flows as a share of TAM), by "
     "consumer type—each diagram sums one direction over the 8-year run. "
-    "The **platform→open** Plotly panel uses a shorter **on-screen height** when that cumulative total "
-    "is smaller than open→platform (each Sankey still fills its own panel; the panels are not equal height)."
+    "Both panels use the **same height**; the **smaller** direction includes an **invisible balance flow** "
+    "so total Sankey throughput equals **max(open→platform, platform→open)**—real ribbons then appear "
+    "proportionally thinner or thicker side by side."
 )
 try:
     san_l, san_r = st.columns(2, vertical_alignment="top")
 except TypeError:
     san_l, san_r = st.columns(2)
-tot_o2p = float(df["switch_open_to_platform"].sum()) if "switch_open_to_platform" in df.columns else 0.0
+sankey_ref = sankey_pair_scale_reference(df)
 with san_l:
-    _plotly_match_figure_height(fig_sankey_open_to_platform(df))
+    st.plotly_chart(fig_sankey_open_to_platform(df, scale_reference=sankey_ref), use_container_width=True)
 with san_r:
-    _plotly_match_figure_height(fig_sankey_platform_to_open(df, volume_reference=tot_o2p))
+    st.plotly_chart(fig_sankey_platform_to_open(df, scale_reference=sankey_ref), use_container_width=True)
 
 with st.expander("Model notes (equations & interpretation)"):
     st.markdown(
