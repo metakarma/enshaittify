@@ -84,12 +84,16 @@ SCENARIOS: List[Scenario] = [
     ),
     Scenario(
         name="Federated Equilibrium",
-        description="Balanced development; platforms need very high share before enshittification bites.",
-        k_F=0.6,
-        Q_plat_base=0.45,
-        A_max=0.5,
-        enshit_threshold=0.75,
-        choice_lambda=7.0,
+        description=(
+            "Balanced **coexistence** narrative: sweep-tuned for **~30% cumulative open TAM** at 8y (vs ~6% for "
+            "Platform Capture) — credible commons institutions, modest proprietary head start, **late** "
+            "enshittification onset, and **softer** logit choices (lower λ) so the open side stays contestable."
+        ),
+        k_F=0.65,
+        Q_plat_base=0.44,
+        A_max=0.55,
+        enshit_threshold=0.76,
+        choice_lambda=0.95,
     ),
     Scenario(
         name="Late Reversal",
