@@ -231,8 +231,6 @@ def run_simulation(
             row[f"arriving_{ct.key}"] = float(step_arrivals[i])
             row[f"new_open_{ct.key}"] = float(new_open_by_type[i])
             row[f"new_platform_{ct.key}"] = float(new_plat_by_type[i])
-            row[f"switch_OtoP_{ct.key}"] = float(switch_o_to_p[i])
-            row[f"switch_PtoO_{ct.key}"] = float(switch_p_to_o[i])
         rows.append(row)
 
     df = pd.DataFrame(rows)

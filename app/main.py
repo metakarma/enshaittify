@@ -24,11 +24,8 @@ from app.visualisation import (
     fig_arrivals,
     fig_flows,
     fig_institutions_and_friction,
-    fig_sankey_open_to_platform,
-    fig_sankey_platform_to_open,
     fig_share_of_adopters,
     fig_signal_quality,
-    sankey_pair_scale_reference,
     summary_metrics,
 )
 
@@ -446,23 +443,6 @@ with flow_l:
     st.plotly_chart(fig_flows(df), use_container_width=True)
 with flow_r:
     st.plotly_chart(fig_arrivals(df), use_container_width=True)
-
-st.caption(
-    "**Sankeys:** cumulative **switching volume** (sum of monthly flows as a share of TAM), by "
-    "consumer type—each diagram sums one direction over the 8-year run. "
-    "Both panels use the **same height**; the **smaller** direction includes an **invisible balance flow** "
-    "so total Sankey throughput equals **max(open→platform, platform→open)**—real ribbons then appear "
-    "proportionally thinner or thicker side by side."
-)
-try:
-    san_l, san_r = st.columns(2, vertical_alignment="top")
-except TypeError:
-    san_l, san_r = st.columns(2)
-sankey_ref = sankey_pair_scale_reference(df)
-with san_l:
-    st.plotly_chart(fig_sankey_open_to_platform(df, scale_reference=sankey_ref), use_container_width=True)
-with san_r:
-    st.plotly_chart(fig_sankey_platform_to_open(df, scale_reference=sankey_ref), use_container_width=True)
 
 with st.expander("Model notes (equations & interpretation)"):
     st.markdown(
