@@ -4,12 +4,14 @@
 
 | Item | Value |
 |------|--------|
-| Host | `cmabot.app` |
+| **Public URL** | `https://enshait.metakarma.org` (NGINX → Streamlit) |
+| SSH host | `cmabot.app` (server hostname; not the app URL) |
 | User | `root` (SSH) |
 | App directory | `/home/enshaittify` |
 | Remote | `https://github.com/metakarma/enshaittify.git` |
 | Process | Docker Compose service `simulation`, container `agentic-web-sim` |
-| Published port | `127.0.0.1:8501:8501` (Streamlit; typically fronted by a reverse proxy) |
+| Published port | `127.0.0.1:8501:8501` (Streamlit; proxied by NGINX) |
+| NGINX site file | `/etc/nginx/sites-available/enshait.metakarma.org` (also `enshait.cmabot.app` legacy) |
 
 The **Dockerfile** copies `app/` and `.streamlit/` into the image at build time. After `git pull`, you must **rebuild** the image and **recreate** the container; a pull alone does not change what the running container executes.
 
