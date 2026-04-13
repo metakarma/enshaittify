@@ -59,7 +59,7 @@ $$
 The metric reports $\displaystyle \max_t E(t)$.
 """
 
-# --- Key levers (also overwritten by non-Custom scenario presets) ---
+# --- Key levers (also overwritten by non-Custom scenario presets: includes λ) ---
 
 K_F = r"""
 Speed at which commons-based institutions mature: data unions, FIDU-like stewards, and
@@ -162,16 +162,20 @@ usual logit; post-arrival switching uses asymmetric leave costs (see consumer-ty
 """
 
 SCENARIO_PRESET = r"""
-Narrative bundles that overwrite the four **Key lever** sliders: **k_F**, **Q_plat_base**,
-**A_max**, and **enshit_threshold**. All other parameters stay at their current values unless you
-change them. **Custom** leaves Key Levers unchanged.
+Narrative bundles that overwrite the **Key lever** sliders: **k_F**, **Q_plat_base**,
+**A_max**, **enshit_threshold**, and **λ** (logit inverse temperature). At very high **λ**, small
+changes in the first four barely move cumulative open share — presets therefore set **λ** per story
+so scenarios diverge in the headline charts. **Non-Custom** presets also reset **advanced** expander
+sliders (platform delay, μ, enshittification, platform curve, etc.) to **model defaults**; **Decentralisation Scenario**
+then replaces them with a sweep-tuned bundle aimed at **~60% cumulative open share**. **Custom** leaves all sliders unchanged.
 
 **Preset values (same symbols as in the equations elsewhere)**
 
-- **Platform Capture:** $k_F=0.2$, $Q_{\mathrm{plat,base}}=0.6$, $A_{\max}=0.3$, $\theta=0.5$
-- **Protocol Window:** $k_F=1.2$, $Q_{\mathrm{plat,base}}=0.5$, $A_{\max}=0.7$, $\theta=0.6$
-- **Federated Equilibrium:** $k_F=0.6$, $Q_{\mathrm{plat,base}}=0.45$, $A_{\max}=0.5$, $\theta=0.75$
-- **Late Reversal:** $k_F=0.4$, $Q_{\mathrm{plat,base}}=0.55$, $A_{\max}=0.65$, $\theta=0.68$
+- **Pre-agent web (email-like):** $k_F=0.2$, $Q_{\mathrm{plat,base}}=0.8$, $A_{\max}=0.32$, $\theta=0.6$, $\lambda=12$
+- **Platform Capture:** $k_F=0.2$, $Q_{\mathrm{plat,base}}=0.6$, $A_{\max}=0.3$, $\theta=0.5$, $\lambda=14$
+- **Decentralisation Scenario:** $k_F=1.85$, $Q_{\mathrm{plat,base}}=0.52$, $A_{\max}=0.72$, $\theta=0.37$, $\lambda=1.9$ (plus advanced: long platform entry delay, high $\mu$ / $Q_{\mathrm{open,base}}$ / $F_{\max}$ / $\varphi$, stronger $E$ dynamics and platform quality drag, slower $k_{\mathrm{plat}}$ — see app after selecting the preset)
+- **Federated Equilibrium:** $k_F=0.6$, $Q_{\mathrm{plat,base}}=0.45$, $A_{\max}=0.5$, $\theta=0.75$, $\lambda=7$
+- **Late Reversal:** $k_F=0.4$, $Q_{\mathrm{plat,base}}=0.55$, $A_{\max}=0.65$, $\theta=0.68$, $\lambda=5$
 """
 
 # --- Advanced: institutional & commons ---

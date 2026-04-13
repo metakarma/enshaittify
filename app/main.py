@@ -17,7 +17,7 @@ import streamlit as st
 from app.consumer_types import DEFAULT_CONSUMER_TYPES, ConsumerTypeSpec
 from app.dynamics import ModelParams
 from app.model import run_simulation
-from app.scenarios import SCENARIOS, scenario_by_name
+from app.scenarios import SCENARIOS, Scenario, scenario_by_name
 from app import ui_help as uh
 from app.visualisation import (
     fig_adoption_shares,
@@ -30,15 +30,68 @@ from app.visualisation import (
 )
 
 
+def _advanced_session_from_model(mp: ModelParams) -> dict:
+    """Sidebar session keys for non-consumer-type sliders (synced when applying a preset)."""
+    return {
+        "sv_platform_entry_delay_months": int(mp.platform_entry_delay_months),
+        "sv_mu": float(mp.mu),
+        "sv_Q_open_base": float(mp.Q_open_base),
+        "sv_F_max": float(mp.F_max),
+        "sv_t_F_inflection": float(mp.t_F_inflection),
+        "sv_k_F_open_coupling": float(mp.k_F_open_coupling),
+        "sv_Q_plat_max": float(mp.Q_plat_max),
+        "sv_k_plat": float(mp.k_plat),
+        "sv_plat_threshold": float(mp.plat_threshold),
+        "sv_enshit_quality_drag": float(mp.enshit_quality_drag),
+        "sv_L_max": float(mp.L_max),
+        "sv_k_L": float(mp.k_L),
+        "sv_dominance_share_threshold": float(mp.dominance_share_threshold),
+        "sv_E_max": float(mp.E_max),
+        "sv_k_E": float(mp.k_E),
+        "sv_enshit_ramp_years": float(mp.enshit_ramp_years),
+        "sv_k_A": float(mp.k_A),
+        "sv_V_base": float(mp.V_base),
+        "sv_V_awareness": float(mp.V_awareness),
+        "sv_k_V": float(mp.k_V),
+        "sv_t_V_inflection": float(mp.t_V_inflection),
+    }
+
+
+def _scenario_apply_advanced_overrides(sc: Scenario) -> None:
+    mapping = (
+        ("platform_entry_delay_months", "sv_platform_entry_delay_months", int),
+        ("mu", "sv_mu", float),
+        ("Q_open_base", "sv_Q_open_base", float),
+        ("F_max", "sv_F_max", float),
+        ("k_F_open_coupling", "sv_k_F_open_coupling", float),
+        ("E_max", "sv_E_max", float),
+        ("k_E", "sv_k_E", float),
+        ("enshit_quality_drag", "sv_enshit_quality_drag", float),
+        ("enshit_ramp_years", "sv_enshit_ramp_years", float),
+        ("k_plat", "sv_k_plat", float),
+        ("plat_threshold", "sv_plat_threshold", float),
+        ("Q_plat_max", "sv_Q_plat_max", float),
+    )
+    for attr, skey, cast in mapping:
+        v = getattr(sc, attr)
+        if v is not None:
+            st.session_state[skey] = cast(v)
+
+
 def _init_state() -> None:
     defaults = {
         "sv_k_F": 0.2,
         "sv_Q_plat_base": 0.8,
         "sv_A_max": 0.32,
         "sv_enshit_threshold": 0.6,
+        "sv_choice_lambda": 12.0,
         "scenario_preset": "Pre-agent web (email-like)",
     }
     for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+    mp = ModelParams()
+    for k, v in _advanced_session_from_model(mp).items():
         if k not in st.session_state:
             st.session_state[k] = v
 
@@ -47,11 +100,16 @@ def _apply_preset() -> None:
     name = st.session_state.get("scenario_preset", "Custom")
     if name == "Custom":
         return
+    mp = ModelParams()
+    for k, v in _advanced_session_from_model(mp).items():
+        st.session_state[k] = v
     sc = scenario_by_name(name)
     st.session_state["sv_k_F"] = float(sc.k_F)
     st.session_state["sv_Q_plat_base"] = float(sc.Q_plat_base)
     st.session_state["sv_A_max"] = float(sc.A_max)
     st.session_state["sv_enshit_threshold"] = float(sc.enshit_threshold)
+    st.session_state["sv_choice_lambda"] = float(sc.choice_lambda)
+    _scenario_apply_advanced_overrides(sc)
 
 
 st.set_page_config(
@@ -61,6 +119,10 @@ st.set_page_config(
 )
 
 _init_state()
+# Legacy preset label (rename Decentralisation Scenario)
+if st.session_state.get("scenario_preset") == "The Protocol Window":
+    st.session_state["scenario_preset"] = "Decentralisation Scenario"
+    _apply_preset()
 
 st.markdown(
     """
@@ -98,7 +160,33 @@ st.markdown(
     "tooling ahead of big-platform agents at scale."
 )
 
-# --- Sidebar: key levers first (not in expanders) ---
+# --- Sidebar: scenario first (applies before key-lever widgets read session state) ---
+st.sidebar.markdown("### Scenario presets")
+scenario_names = [s.name for s in SCENARIOS]
+st.sidebar.selectbox(
+    "Scenario preset",
+    options=scenario_names,
+    key="scenario_preset",
+    on_change=_apply_preset,
+    help=uh.SCENARIO_PRESET,
+)
+
+preset_name = st.session_state["scenario_preset"]
+if preset_name != "Custom":
+    sc = scenario_by_name(preset_name)
+    st.sidebar.info(
+        f"{sc.description}\n\n"
+        f"**Preset overwrites (Key levers):** "
+        f"k_F=`{sc.k_F}`, "
+        f"Q_plat_base=`{sc.Q_plat_base}`, "
+        f"A_max=`{sc.A_max}`, "
+        f"enshit_threshold=`{sc.enshit_threshold}`, "
+        f"λ=`{sc.choice_lambda}` (logit sensitivity — low λ spreads adoption across outcomes). "
+        f"**Non-Custom presets** also reset **advanced** expander sliders to model defaults "
+        f"(Decentralisation then applies its sweep-tuned bundle). "
+        f"Full list: **?** on the scenario control."
+    )
+
 st.sidebar.markdown("### Key levers")
 st.sidebar.caption(
     "Streamlit shows a **?** next to each control’s label. Click or hover **?** for the long description "
@@ -107,7 +195,7 @@ st.sidebar.caption(
 st.sidebar.slider(
     "Commons institutional development speed (k_F)",
     min_value=0.1,
-    max_value=2.0,
+    max_value=2.5,
     step=0.05,
     key="sv_k_F",
     help=uh.K_F,
@@ -136,112 +224,152 @@ st.sidebar.slider(
     key="sv_A_max",
     help=uh.A_MAX,
 )
+st.sidebar.slider(
+    "λ — choice sensitivity (logit)",
+    min_value=0.5,
+    max_value=15.0,
+    step=0.1,
+    key="sv_choice_lambda",
+    help=uh.CHOICE_LAMBDA,
+)
 platform_entry_delay_months = st.sidebar.slider(
     "Open adoption lead — platform entry delay (months)",
     min_value=0,
     max_value=96,
-    value=14,
     step=1,
+    key="sv_platform_entry_delay_months",
     help=uh.PLATFORM_ENTRY_DELAY,
 )
-
-st.sidebar.markdown("### Scenario presets")
-scenario_names = [s.name for s in SCENARIOS]
-st.sidebar.selectbox(
-    "Scenario preset",
-    options=scenario_names,
-    key="scenario_preset",
-    on_change=_apply_preset,
-    help=uh.SCENARIO_PRESET,
-)
-
-preset_name = st.session_state["scenario_preset"]
-if preset_name != "Custom":
-    sc = scenario_by_name(preset_name)
-    st.sidebar.info(
-        f"{sc.description}\n\n"
-        f"**Preset overwrites (Key levers):** "
-        f"k_F=`{sc.k_F}` (in F(t)=F_max*sigmoid(k_F*(t-t_F*))), "
-        f"Q_plat_base=`{sc.Q_plat_base}` (Q_platform baseline term), "
-        f"A_max=`{sc.A_max}` (in A(t)=A_max*(1-exp(-k_A*t))), "
-        f"enshit_threshold=`{sc.enshit_threshold}` (E uses s_plat vs this theta). "
-        f"Full preset list: **?** help on the scenario control above."
-    )
 
 k_F = float(st.session_state["sv_k_F"])
 Q_plat_base = float(st.session_state["sv_Q_plat_base"])
 A_max = float(st.session_state["sv_A_max"])
 enshit_threshold = float(st.session_state["sv_enshit_threshold"])
+choice_lambda = float(st.session_state["sv_choice_lambda"])
 
 with st.sidebar.expander("Institutional & commons (Q_open)", expanded=False):
     mu = st.sidebar.slider(
-        "μ — institutional effectiveness", 0.1, 1.0, 0.22, 0.01, help=uh.MU
+        "μ — institutional effectiveness",
+        0.1,
+        1.0,
+        step=0.01,
+        key="sv_mu",
+        help=uh.MU,
     )
     Q_open_base = st.sidebar.slider(
-        "Q_open_base", 0.05, 0.4, 0.05, 0.01, help=uh.Q_OPEN_BASE
+        "Q_open_base", 0.05, 0.4, step=0.01, key="sv_Q_open_base", help=uh.Q_OPEN_BASE
     )
-    F_max = st.sidebar.slider("F_max", 0.2, 1.0, 0.68, 0.01, help=uh.F_MAX)
+    F_max = st.sidebar.slider(
+        "F_max", 0.2, 1.0, step=0.01, key="sv_F_max", help=uh.F_MAX
+    )
     t_F_inflection = st.sidebar.slider(
-        "t_F_inflection (years)", 1.0, 15.0, 5.0, 0.25, help=uh.T_F_INFLECTION
+        "t_F_inflection (years)",
+        1.0,
+        15.0,
+        step=0.25,
+        key="sv_t_F_inflection",
+        help=uh.T_F_INFLECTION,
     )
     k_F_open_coupling = st.sidebar.slider(
         "φ — F speed scales with N_open (supply-side loop)",
         0.0,
         3.0,
-        1.0,
-        0.05,
+        step=0.05,
+        key="sv_k_F_open_coupling",
         help=uh.K_F_OPEN_COUPLING,
     )
 
 with st.sidebar.expander("Platform quality curve", expanded=False):
     Q_plat_max = st.sidebar.slider(
-        "Q_plat_max", 0.7, 1.0, 0.99, 0.01, help=uh.Q_PLAT_MAX
+        "Q_plat_max", 0.7, 1.0, step=0.01, key="sv_Q_plat_max", help=uh.Q_PLAT_MAX
     )
     k_plat = st.sidebar.slider(
-        "k_plat (sigmoid steepness)", 1.0, 20.0, 14.0, 0.5, help=uh.K_PLAT
+        "k_plat (sigmoid steepness)",
+        1.0,
+        20.0,
+        step=0.5,
+        key="sv_k_plat",
+        help=uh.K_PLAT,
     )
     plat_threshold = st.sidebar.slider(
-        "plat_threshold", 0.1, 0.6, 0.24, 0.01, help=uh.PLAT_THRESHOLD
+        "plat_threshold",
+        0.1,
+        0.6,
+        step=0.01,
+        key="sv_plat_threshold",
+        help=uh.PLAT_THRESHOLD,
     )
     enshit_quality_drag = st.sidebar.slider(
-        "enshit_quality_drag", 0.0, 1.0, 0.26, 0.01, help=uh.ENSHIT_QUALITY_DRAG
+        "enshit_quality_drag",
+        0.0,
+        1.0,
+        step=0.01,
+        key="sv_enshit_quality_drag",
+        help=uh.ENSHIT_QUALITY_DRAG,
     )
 
 with st.sidebar.expander("Lock-in & dominance", expanded=False):
-    L_max = st.sidebar.slider("L_max", 0.1, 0.8, 0.38, 0.01, help=uh.L_MAX)
-    k_L = st.sidebar.slider("k_L", 0.05, 1.0, 0.3, 0.01, help=uh.K_L)
+    L_max = st.sidebar.slider(
+        "L_max", 0.1, 0.8, step=0.01, key="sv_L_max", help=uh.L_MAX
+    )
+    k_L = st.sidebar.slider(
+        "k_L", 0.05, 1.0, step=0.01, key="sv_k_L", help=uh.K_L
+    )
     dominance_share_threshold = st.sidebar.slider(
         "Platform dominance share (lock-in clock)",
         0.4,
         0.7,
-        0.49,
-        0.01,
+        step=0.01,
+        key="sv_dominance_share_threshold",
         help=uh.DOMINANCE_SHARE_THRESHOLD,
     )
 
 with st.sidebar.expander("Enshittification dynamics", expanded=False):
-    E_max = st.sidebar.slider("E_max", 0.2, 1.0, 0.48, 0.01, help=uh.E_MAX)
-    k_E = st.sidebar.slider("k_E (sharpness)", 1.0, 30.0, 12.0, 0.5, help=uh.K_E)
+    E_max = st.sidebar.slider(
+        "E_max", 0.2, 1.0, step=0.01, key="sv_E_max", help=uh.E_MAX
+    )
+    k_E = st.sidebar.slider(
+        "k_E (sharpness)", 1.0, 30.0, step=0.5, key="sv_k_E", help=uh.K_E
+    )
     enshit_ramp_years = st.sidebar.slider(
-        "enshit_ramp_years", 1.0, 15.0, 5.0, 0.5, help=uh.ENSHIT_RAMP_YEARS
+        "enshit_ramp_years",
+        1.0,
+        15.0,
+        step=0.5,
+        key="sv_enshit_ramp_years",
+        help=uh.ENSHIT_RAMP_YEARS,
     )
 
 with st.sidebar.expander("Agents & values", expanded=False):
     k_A = st.sidebar.slider(
-        "k_A (agent friction ramp)", 0.05, 1.0, 0.3, 0.01, help=uh.K_A
+        "k_A (agent friction ramp)",
+        0.05,
+        1.0,
+        step=0.01,
+        key="sv_k_A",
+        help=uh.K_A,
     )
-    V_base = st.sidebar.slider("V_base", 0.0, 0.3, 0.05, 0.01, help=uh.V_BASE)
+    V_base = st.sidebar.slider(
+        "V_base", 0.0, 0.3, step=0.01, key="sv_V_base", help=uh.V_BASE
+    )
     V_awareness = st.sidebar.slider(
-        "V_awareness", 0.0, 0.6, 0.18, 0.01, help=uh.V_AWARENESS
+        "V_awareness",
+        0.0,
+        0.6,
+        step=0.01,
+        key="sv_V_awareness",
+        help=uh.V_AWARENESS,
     )
-    k_V = st.sidebar.slider("k_V", 0.1, 1.0, 0.4, 0.01, help=uh.K_V)
+    k_V = st.sidebar.slider(
+        "k_V", 0.1, 1.0, step=0.01, key="sv_k_V", help=uh.K_V
+    )
     t_V_inflection = st.sidebar.slider(
-        "t_V_inflection (years)", 1.0, 15.0, 6.0, 0.25, help=uh.T_V_INFLECTION
-    )
-
-with st.sidebar.expander("Choice & diffusion", expanded=False):
-    choice_lambda = st.sidebar.slider(
-        "λ — choice sensitivity", 0.5, 15.0, 15.0, 0.5, help=uh.CHOICE_LAMBDA
+        "t_V_inflection (years)",
+        1.0,
+        15.0,
+        step=0.25,
+        key="sv_t_V_inflection",
+        help=uh.T_V_INFLECTION,
     )
 
 with st.sidebar.expander("Consumer types & mix", expanded=False):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,21 @@ class Scenario:
     Q_plat_base: float
     A_max: float
     enshit_threshold: float
+    # Logit inverse temperature; at high λ the four fields above barely move outcomes — presets set λ per story.
+    choice_lambda: float
+    # Optional advanced overrides (None = use ModelParams defaults after preset reset).
+    platform_entry_delay_months: Optional[int] = None
+    mu: Optional[float] = None
+    Q_open_base: Optional[float] = None
+    F_max: Optional[float] = None
+    k_F_open_coupling: Optional[float] = None
+    E_max: Optional[float] = None
+    k_E: Optional[float] = None
+    enshit_quality_drag: Optional[float] = None
+    enshit_ramp_years: Optional[float] = None
+    k_plat: Optional[float] = None
+    plat_threshold: Optional[float] = None
+    Q_plat_max: Optional[float] = None
 
 
 SCENARIOS: List[Scenario] = [
@@ -28,6 +43,7 @@ SCENARIOS: List[Scenario] = [
         Q_plat_base=0.8,
         A_max=0.32,
         enshit_threshold=0.6,
+        choice_lambda=12.0,
     ),
     Scenario(
         name="Platform Capture",
@@ -36,14 +52,35 @@ SCENARIOS: List[Scenario] = [
         Q_plat_base=0.6,
         A_max=0.3,
         enshit_threshold=0.5,
+        choice_lambda=14.0,
     ),
     Scenario(
-        name="The Protocol Window",
-        description="Fast institutional development and high agent-mediated usability; a credible open path.",
-        k_F=1.2,
-        Q_plat_base=0.5,
-        A_max=0.7,
-        enshit_threshold=0.6,
+        name="Decentralisation Scenario",
+        description=(
+            "Calibrated to **~60% cumulative open (decentralised) TAM share** at 8 years: **strong open-side "
+            "signal** (commons institutions and Q_open), **salient fear of platform enshittification** "
+            "(earlier onset, sharper E, more quality drag), and **slow platform capture of the space** "
+            "(long entry delay, moderated proprietary baseline and installed-base curve). "
+            "Selecting any non-Custom preset resets **advanced** sliders to model defaults, then this scenario "
+            "replaces them with the sweep-tuned bundle below."
+        ),
+        k_F=1.85,
+        Q_plat_base=0.52,
+        A_max=0.72,
+        enshit_threshold=0.37,
+        choice_lambda=1.9,
+        platform_entry_delay_months=57,
+        mu=1.0,
+        Q_open_base=0.21,
+        F_max=0.76,
+        k_F_open_coupling=2.85,
+        E_max=0.79,
+        k_E=19.0,
+        enshit_quality_drag=0.49,
+        enshit_ramp_years=2.5,
+        k_plat=6.5,
+        plat_threshold=0.50,
+        Q_plat_max=0.93,
     ),
     Scenario(
         name="Federated Equilibrium",
@@ -52,6 +89,7 @@ SCENARIOS: List[Scenario] = [
         Q_plat_base=0.45,
         A_max=0.5,
         enshit_threshold=0.75,
+        choice_lambda=7.0,
     ),
     Scenario(
         name="Late Reversal",
@@ -60,6 +98,7 @@ SCENARIOS: List[Scenario] = [
         Q_plat_base=0.55,
         A_max=0.65,
         enshit_threshold=0.68,
+        choice_lambda=5.0,
     ),
     Scenario(
         name="Custom",
@@ -68,6 +107,7 @@ SCENARIOS: List[Scenario] = [
         Q_plat_base=0.5,
         A_max=0.5,
         enshit_threshold=0.6,
+        choice_lambda=15.0,
     ),
 ]
 
