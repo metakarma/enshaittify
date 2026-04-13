@@ -23,8 +23,9 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r},{g},{b},{alpha})"
 
 
-# Shared layout so side-by-side Sankeys share the same vertical scale for each consumer type.
+# Shared layout: left Sankey uses full height; right Sankey height scales by (P→O total)/(O→P total).
 _SANKEY_HEIGHT = 420
+_SANKEY_MIN_HEIGHT = 200
 _SANKEY_MARGIN = dict(l=28, r=28, t=52, b=28)
 _SANKEY_X_LEFT = 0.02
 _SANKEY_X_RIGHT = 0.98
@@ -298,10 +299,18 @@ def fig_arrivals(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def _sankey_totals(df: pd.DataFrame) -> tuple[float, float]:
+    """(cumulative open→platform, cumulative platform→open) as share of TAM."""
+    o2p = float(df["switch_open_to_platform"].sum()) if "switch_open_to_platform" in df.columns else 0.0
+    p2o = float(df["switch_platform_to_open"].sum()) if "switch_platform_to_open" in df.columns else 0.0
+    return o2p, p2o
+
+
 def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
-    """Cumulative mass that switched open → platform, by consumer type."""
+    """Cumulative mass that switched open → platform, by consumer type (reference height for the pair)."""
     keys = _arriving_type_keys(df)
     y_by_key = _sankey_type_y_by_key(keys)
+    tot_o2p, _ = _sankey_totals(df)
     pairs = [(k, float(df[f"switch_OtoP_{k}"].sum())) for k in keys if f"switch_OtoP_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
     if not pairs:
@@ -316,7 +325,15 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
             font=dict(size=14, color="#666"),
         )
         fig.update_layout(
-            title="Cumulative switchers: open → platform (by type)",
+            title=dict(
+                text=(
+                    "Cumulative switchers: open → platform (by type)"
+                    f"<br><sup>Total volume: {tot_o2p:.2%} of TAM (reference for chart height)</sup>"
+                ),
+                x=0.5,
+                xref="paper",
+                xanchor="center",
+            ),
             height=_SANKEY_HEIGHT,
             template="plotly_white",
             margin=_SANKEY_MARGIN,
@@ -358,7 +375,15 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
         ]
     )
     fig.update_layout(
-        title="Cumulative switchers: open → platform (by type)",
+        title=dict(
+            text=(
+                "Cumulative switchers: open → platform (by type)"
+                f"<br><sup>Total volume: {tot_o2p:.2%} of TAM — right-hand chart height scales vs this total</sup>"
+            ),
+            x=0.5,
+            xref="paper",
+            xanchor="center",
+        ),
         height=_SANKEY_HEIGHT,
         font=dict(size=12),
         template="plotly_white",
@@ -367,10 +392,27 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
-    """Cumulative mass that switched platform → open, by consumer type."""
+def fig_sankey_platform_to_open(
+    df: pd.DataFrame,
+    *,
+    volume_reference: float | None = None,
+) -> go.Figure:
+    """Cumulative mass that switched platform → open. Figure height is (P→O total)/(reference) × reference height.
+
+    Pass ``volume_reference`` = open→platform cumulative total so a smaller P→O flow yields a visibly shorter chart.
+    """
     keys = _arriving_type_keys(df)
     y_by_key = _sankey_type_y_by_key(keys)
+    tot_o2p, tot_p2o = _sankey_totals(df)
+    # Scale height vs open→platform total when available so ~10% vs ~38% TAM is visibly shorter/taller.
+    if volume_reference is not None and volume_reference > 1e-15:
+        ref = volume_reference
+    elif tot_o2p > 1e-15:
+        ref = tot_o2p
+    else:
+        ref = max(tot_p2o, 1e-15)
+    ratio = tot_p2o / ref if ref > 1e-15 else 1.0
+    plot_height = max(_SANKEY_MIN_HEIGHT, int(round(_SANKEY_HEIGHT * ratio)))
     pairs = [(k, float(df[f"switch_PtoO_{k}"].sum())) for k in keys if f"switch_PtoO_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
     if not pairs:
@@ -385,8 +427,17 @@ def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
             font=dict(size=14, color="#666"),
         )
         fig.update_layout(
-            title="Cumulative switchers: platform → open (by type)",
-            height=_SANKEY_HEIGHT,
+            title=dict(
+                text=(
+                    "Cumulative switchers: platform → open (by type)"
+                    f"<br><sup>Total volume: {tot_p2o:.2%} of TAM"
+                    f" (height = {ratio:.1%} of left chart if ref = open→platform total)</sup>"
+                ),
+                x=0.5,
+                xref="paper",
+                xanchor="center",
+            ),
+            height=plot_height,
             template="plotly_white",
             margin=_SANKEY_MARGIN,
             xaxis=dict(visible=False),
@@ -429,8 +480,16 @@ def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
         ]
     )
     fig.update_layout(
-        title="Cumulative switchers: platform → open (by type)",
-        height=_SANKEY_HEIGHT,
+        title=dict(
+            text=(
+                "Cumulative switchers: platform → open (by type)"
+                f"<br><sup>Total volume: {tot_p2o:.2%} of TAM — chart height {ratio:.1%} of left (ref {tot_o2p:.2%})</sup>"
+            ),
+            x=0.5,
+            xref="paper",
+            xanchor="center",
+        ),
+        height=plot_height,
         font=dict(size=12),
         template="plotly_white",
         margin=_SANKEY_MARGIN,

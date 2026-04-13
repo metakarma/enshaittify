@@ -448,13 +448,19 @@ with flow_r:
 
 st.caption(
     "**Sankeys:** cumulative **switching volume** (sum of monthly flows as a share of TAM), by "
-    "consumer type—each diagram sums one direction over the 8-year run."
+    "consumer type—each diagram sums one direction over the 8-year run. "
+    "**Chart height** of the platform→open figure is proportional to its total vs the open→platform total "
+    "so the two magnitudes are comparable side by side."
 )
 san_l, san_r = st.columns(2)
+tot_o2p = float(df["switch_open_to_platform"].sum()) if "switch_open_to_platform" in df.columns else 0.0
 with san_l:
     st.plotly_chart(fig_sankey_open_to_platform(df), use_container_width=True)
 with san_r:
-    st.plotly_chart(fig_sankey_platform_to_open(df), use_container_width=True)
+    st.plotly_chart(
+        fig_sankey_platform_to_open(df, volume_reference=tot_o2p),
+        use_container_width=True,
+    )
 
 with st.expander("Model notes (equations & interpretation)"):
     st.markdown(
