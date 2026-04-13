@@ -66,14 +66,17 @@ st.markdown(
     """
     <style>
     footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
-    /* KaTeX in st.markdown: Streamlit renders $...$ / $$...$$ — CSS only affects layout, not parsing */
-    div[data-testid="stMarkdownContainer"] .katex-display {
+    /* KaTeX in st.markdown and in widget help popovers (same $ / $$ parsing) */
+    div[data-testid="stMarkdownContainer"] .katex-display,
+    div[data-baseweb="popover"] .katex-display {
         overflow-x: auto;
         overflow-y: hidden;
         padding: 0.35em 0;
         max-width: 100%;
     }
     div[data-testid="stMarkdownContainer"] .katex { font-size: 1.05em; }
+    div[data-baseweb="popover"] .katex { font-size: 0.98em; }
+    div[data-baseweb="popover"] { max-width: min(440px, 92vw); }
     </style>
     """,
     unsafe_allow_html=True,
