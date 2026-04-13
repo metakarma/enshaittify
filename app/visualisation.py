@@ -186,7 +186,11 @@ def fig_institutions_and_friction(df: pd.DataFrame) -> go.Figure:
 
 
 def fig_arrivals(df: pd.DataFrame) -> go.Figure:
-    """Stacked monthly entrants: per type, bottom = → open (solid), top = → platform (hatched)."""
+    """Stacked monthly entrants: per type, bottom = → open (opaque), top = → platform (lighter fill).
+
+    Plotly Scatter only accepts string ``fillcolor`` in many versions—no pattern dict—so platform
+    slices use a translucent rgba of the same hue plus a dashed line for contrast.
+    """
     keys = _arriving_type_keys(df)
     palette = [
         "#37474f",
@@ -229,7 +233,7 @@ def fig_arrivals(df: pd.DataFrame) -> go.Figure:
                 hovertemplate=f"{lab} → open: %{{y:.4f}}<extra></extra>",
             )
         )
-        # Hatched fill: entrants choosing platform (same hue)
+        # Platform slice: same hue, translucent fill + dashed upper edge (pattern not supported on Scatter fillcolor in Plotly 5.x)
         fig.add_trace(
             go.Scatter(
                 x=df["year"],
@@ -237,25 +241,15 @@ def fig_arrivals(df: pd.DataFrame) -> go.Figure:
                 mode="lines",
                 name=f"{lab} → platform",
                 stackgroup="one",
-                line=dict(width=0.5, color=c),
-                fillcolor=dict(
-                    color=c,
-                    pattern=dict(
-                        shape="/",
-                        fgcolor=c,
-                        fgopacity=0.85,
-                        bgcolor=_hex_to_rgba(c, 0.22),
-                        solidity=0.2,
-                        size=8,
-                    ),
-                ),
-                opacity=0.92,
+                line=dict(width=0.65, color=c, dash="dash"),
+                fillcolor=_hex_to_rgba(c, 0.38),
+                opacity=1.0,
                 hovertemplate=f"{lab} → platform: %{{y:.4f}}<extra></extra>",
             )
         )
     fig.update_layout(
         title=dict(
-            text="New entrants by type: open (solid) vs platform (hatched), stacked",
+            text="New entrants by type: open (opaque) vs platform (lighter fill, dashed edge), stacked",
             x=0.5,
             xref="paper",
             xanchor="center",
