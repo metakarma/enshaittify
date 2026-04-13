@@ -7,6 +7,58 @@ Use Python raw strings for constants so TeX backslashes are preserved.
 
 from __future__ import annotations
 
+# --- Summary metrics (top of main page) ---
+
+METRIC_OPEN_SHARE_CUMULATIVE = r"""
+**Intuition:** Share of the **total addressable market (TAM)** that has **ever adopted** the open /
+decentralised architecture by the **end of the 8-year** horizon. This is **not** “open share among
+adopters only”—it counts everyone on the open side as a fraction of the whole market (including
+people who have not adopted either architecture yet).
+
+**Math**
+
+Let $N_{\mathrm{open}}(t)$ be cumulative open adopters as a share of TAM at calendar time $t$ (years).
+The metric is
+$$
+N_{\mathrm{open}}(T),\quad T=8.
+$$
+Each month, new entrants and switchers update per-type stocks; $N_{\mathrm{open}}$ is their sum over types.
+"""
+
+METRIC_PLATFORM_SHARE_AMONG_ADOPTERS = r"""
+**Intuition:** Among people who have **already adopted** either open **or** platform, what fraction
+ended up on the **platform** side at **$t=8$** years? If almost everyone who adopts chooses the
+platform, this number is near **100%** even if many people never adopt at all.
+
+**Math**
+
+Let $N_{\mathrm{open}}$ and $N_{\mathrm{platform}}$ be cumulative adopter shares (of TAM) on each side at $t=8$.
+Among adopters only,
+$$
+s_{\mathrm{plat}} = \frac{N_{\mathrm{platform}}}{N_{\mathrm{open}}+N_{\mathrm{platform}}},
+$$
+defined as $0$ if $N_{\mathrm{open}}+N_{\mathrm{platform}}=0$. This is the same $s_{\mathrm{plat}}$ that drives
+enshittification and lock-in timing elsewhere in the model.
+"""
+
+METRIC_PEAK_ENSHITTIFICATION = r"""
+**Intuition:** **Enshittification** $E(t)$ is the model’s “rent extraction / quality degradation”
+intensity once the platform is **dominant among adopters**. It hurts platform signal quality and
+platform-side utility. This KPI is the **maximum** of $E(t)$ over the whole run—the worst the
+dynamics get, not the value at $t=8$ alone.
+
+**Math**
+
+With $s_{\mathrm{plat}} = N_{\mathrm{platform}}/(N_{\mathrm{open}}+N_{\mathrm{platform}})$ among adopters,
+$\sigma(x)=1/(1+e^{-x})$, threshold $\theta=$ **enshit_threshold**, and ramp / brake as in the sidebar,
+$$
+E(t) = \mathrm{clip}\!\Bigl(
+E_{\max}\,\sigma\!\bigl(k_E(s_{\mathrm{plat}}(t)-\theta)\bigr)\,\mathrm{ramp}(t)\,\mathrm{brake}(t),\,
+0,\,E_{\max}\Bigr).
+$$
+The metric reports $\displaystyle \max_t E(t)$.
+"""
+
 # --- Key levers (also overwritten by non-Custom scenario presets) ---
 
 K_F = r"""

@@ -428,9 +428,21 @@ df = result.df
 metrics = summary_metrics(df)
 
 c1, c2, c3 = st.columns(3)
-c1.metric("Open share (cumulative, T=8y)", f"{metrics['final_open']:.1%}")
-c2.metric("Platform share among adopters (T=8y)", f"{metrics['final_platform_share_among_adopters']:.1%}")
-c3.metric("Peak enshittification E", f"{metrics['peak_E']:.2f}")
+c1.metric(
+    "Open share (cumulative, T=8y)",
+    f"{metrics['final_open']:.1%}",
+    help=uh.METRIC_OPEN_SHARE_CUMULATIVE,
+)
+c2.metric(
+    "Platform share among adopters (T=8y)",
+    f"{metrics['final_platform_share_among_adopters']:.1%}",
+    help=uh.METRIC_PLATFORM_SHARE_AMONG_ADOPTERS,
+)
+c3.metric(
+    "Peak enshittification E",
+    f"{metrics['peak_E']:.2f}",
+    help=uh.METRIC_PEAK_ENSHITTIFICATION,
+)
 
 st.plotly_chart(fig_adoption_shares(df), use_container_width=True)
 left, right = st.columns(2)
