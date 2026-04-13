@@ -14,6 +14,8 @@ from app.consumer_types import (
     bass_arrival_weights,
     compute_time_shifts,
     prob_open,
+    prob_switch_open_to_platform,
+    prob_switch_platform_to_open,
     utility_open,
     utility_platform,
 )
@@ -56,20 +58,22 @@ def run_simulation(
         w = bass_arrival_weights(years, ct.p, ct.q, time_shifts[i])
         arrival_matrix[i, :] = ct.population_share * w
 
-    # State
-    N_open = 0.0
-    N_platform = 0.0
-    adopted_open_by_type = np.zeros(n_types)
-    adopted_platform_by_type = np.zeros(n_types)
+    # Installed base by type and architecture (sum_i S_open[i] + S_plat[i] = adopters so far)
+    S_open = np.zeros(n_types, dtype=float)
+    S_plat = np.zeros(n_types, dtype=float)
 
     T_platform = 0.0
     dominance_started_at: Optional[float] = None
     t_enshit_start: Optional[float] = None
 
     rows: List[Dict[str, Any]] = []
+    lam = float(params.choice_lambda)
 
     for k in range(n_steps):
         t = float(years[k])
+
+        N_open = float(S_open.sum())
+        N_platform = float(S_plat.sum())
 
         T_platform, dominance_started_at = update_dominance_clock(
             t, N_platform, N_open, T_platform, dominance_started_at, params
@@ -95,6 +99,7 @@ def run_simulation(
         new_open_by_type = np.zeros(n_types)
         new_plat_by_type = np.zeros(n_types)
 
+        # --- Phase 1: new arrivals (utilities at start of month) ---
         for i, ct in enumerate(cts):
             arr = float(step_arrivals[i])
             if arr <= 0:
@@ -121,24 +126,81 @@ def run_simulation(
                 E,
             )
             if k < params.platform_entry_delay_months:
-                # Platforms not yet in the agentic market: open captures all incoming adopters.
                 p_open = 1.0
             else:
-                p_open = prob_open(u_o - u_p, params.choice_lambda)
+                p_open = prob_open(u_o - u_p, lam)
             new_open_by_type[i] = arr * p_open
             new_plat_by_type[i] = arr * (1.0 - p_open)
+
+        S_open = S_open + new_open_by_type
+        S_plat = S_plat + new_plat_by_type
 
         d_open = float(new_open_by_type.sum())
         d_plat = float(new_plat_by_type.sum())
 
-        N_open += d_open
-        N_platform += d_plat
-        adopted_open_by_type += new_open_by_type
-        adopted_platform_by_type += new_plat_by_type
+        N_open_post = float(S_open.sum())
+        N_platform_post = float(S_plat.sum())
+
+        # Post-arrival signal state for switching decisions
+        E_sw = enshittification_factor(
+            t, N_platform_post, N_open_post, t_enshit_start, params
+        )
+        Q_plat_sw = platform_signal_quality(N_platform_post, E_sw, params)
+        Q_op_sw = commons_signal_quality(N_open_post, F, params)
+
+        switch_o_to_p = np.zeros(n_types)
+        switch_p_to_o = np.zeros(n_types)
+
+        # --- Phase 2: switching (only after platform entry; arrivals first) ---
+        if k >= params.platform_entry_delay_months:
+            for i, ct in enumerate(cts):
+                u_o = utility_open(
+                    ct.alpha,
+                    ct.beta,
+                    ct.epsilon,
+                    ct.zeta,
+                    Q_op_sw,
+                    N_open_post,
+                    N_platform_post,
+                    A,
+                    V,
+                )
+                u_p = utility_platform(
+                    ct.alpha,
+                    ct.beta,
+                    ct.gamma,
+                    ct.delta,
+                    Q_plat_sw,
+                    N_platform_post,
+                    L,
+                    E_sw,
+                )
+                p_op = prob_switch_open_to_platform(
+                    u_o, u_p, ct.leave_open_cost, lam
+                )
+                p_po = prob_switch_platform_to_open(
+                    u_o, u_p, ct.leave_platform_cost, lam
+                )
+                switch_o_to_p[i] = float(S_open[i]) * p_op
+                switch_p_to_o[i] = float(S_plat[i]) * p_po
+
+            S_open = S_open - switch_o_to_p + switch_p_to_o
+            S_plat = S_plat + switch_o_to_p - switch_p_to_o
+            S_open = np.maximum(S_open, 0.0)
+            S_plat = np.maximum(S_plat, 0.0)
+
+        N_open = float(S_open.sum())
+        N_platform = float(S_plat.sum())
 
         total = N_open + N_platform
         plat_share = N_platform / total if total > 1e-12 else 0.0
         open_share = N_open / total if total > 1e-12 else 0.0
+
+        E_end = enshittification_factor(
+            t, N_platform, N_open, t_enshit_start, params
+        )
+        Q_plat_end = platform_signal_quality(N_platform, E_end, params)
+        Q_op_end = commons_signal_quality(N_open, F, params)
 
         row: Dict[str, Any] = {
             "step": k,
@@ -151,16 +213,18 @@ def run_simulation(
             "platform_share": plat_share,
             "open_share": open_share,
             "total_adopters": total,
-            "Q_platform": Q_plat,
-            "Q_open": Q_op,
+            "Q_platform": Q_plat_end,
+            "Q_open": Q_op_end,
             "F": F,
             "L": L,
-            "E": E,
+            "E": E_end,
             "A": A,
             "V": V,
             "arriving_total": total_arriving,
             "new_open": d_open,
             "new_platform": d_plat,
+            "switch_open_to_platform": float(switch_o_to_p.sum()),
+            "switch_platform_to_open": float(switch_p_to_o.sum()),
             "T_platform": T_platform,
         }
         for i, ct in enumerate(cts):

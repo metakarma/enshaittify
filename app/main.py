@@ -235,8 +235,8 @@ with st.sidebar.expander("Choice & diffusion", expanded=False):
 
 with st.sidebar.expander("Consumer types & mix", expanded=False):
     st.sidebar.caption(
-        "Four segments with their own **Bass** timing (p, q, peak year) and **utility** weights α–ζ. "
-        "Mix weights are **renormalized** to sum to 1. Use **?** on each control for equations."
+        "Four segments: **Bass** timing (p, q, peak year), **utility** weights α–ζ, and **asymmetric "
+        "leave costs** for switching after arrivals. Mix weights **renormalize** to 1. Use **?** for equations."
     )
     raw_weights: list[float] = []
     built: list[tuple] = []
@@ -334,7 +334,39 @@ with st.sidebar.expander("Consumer types & mix", expanded=False):
             key=f"cz_{ct.key}",
             help=uh.CONSUMER_ZETA,
         )
-        built.append((p, q, peak_year, alpha, beta, gamma, delta, epsilon, zeta))
+        leave_open = st.sidebar.slider(
+            "Leave-open cost (open → platform)",
+            0.0,
+            2.0,
+            float(ct.leave_open_cost),
+            0.05,
+            key=f"clo_{ct.key}",
+            help=uh.CONSUMER_LEAVE_OPEN,
+        )
+        leave_plat = st.sidebar.slider(
+            "Leave-platform cost (platform → open)",
+            0.0,
+            2.0,
+            float(ct.leave_platform_cost),
+            0.05,
+            key=f"clp_{ct.key}",
+            help=uh.CONSUMER_LEAVE_PLATFORM,
+        )
+        built.append(
+            (
+                p,
+                q,
+                peak_year,
+                alpha,
+                beta,
+                gamma,
+                delta,
+                epsilon,
+                zeta,
+                leave_open,
+                leave_plat,
+            )
+        )
 
     tw = sum(raw_weights)
     if tw <= 1e-9:
@@ -354,6 +386,8 @@ with st.sidebar.expander("Consumer types & mix", expanded=False):
             delta=built[i][6],
             epsilon=built[i][7],
             zeta=built[i][8],
+            leave_open_cost=built[i][9],
+            leave_platform_cost=built[i][10],
         )
         for i, ct in enumerate(DEFAULT_CONSUMER_TYPES)
     )
@@ -415,13 +449,13 @@ with st.expander("Model notes (equations & interpretation)"):
         r"""
 #### 1. Architecture (what the simulation is)
 
-The model is a **discrete-time stock–flow system** on a **fixed total market** (TAM = 1). Each month, a **mass of new adopters** “arrives”; each adopter chooses **open** or **platform** architecture. Cumulative adopters are $N_{open}(t)$ and $N_{platform}(t)$; **platform share among adopters** is $s_{plat} = N_{platform}/(N_{open}+N_{platform})$ (only people who have adopted either side count).
+The model is a **discrete-time stock–flow system** on a **fixed total market** (TAM = 1). Each month, **new adopters** arrive and choose **open** or **platform**; **existing** adopters may **switch** (after arrivals) once platforms are in the market, with per-type **asymmetric leave costs** in utility units. Cumulative stocks are $N_{open}(t)$ and $N_{platform}(t)$; **platform share among adopters** is $s_{plat} = N_{platform}/(N_{open}+N_{platform})$.
 
 **Heterogeneity:** users differ by **consumer type** $i$ (four segments). Each type has its own **diffusion timing** (shifted Bass) and its own **tastes** $(\alpha_i,\ldots,\zeta_i)$ in utility. **Mix weights** in the sidebar are renormalised to population shares $\omega_i$ so $\sum_i \omega_i = 1$.
 
 **Latent state (same for everyone each month):** before choices, the code updates **institutional maturity** $F(t)$, **agent-friction relief** $A(t)$, **values / autonomy premium** $V(t)$, **platform signal quality** $Q_{platform}$, **commons signal quality** $Q_{open}$, **lock-in disutility** $L$, and **enshittification intensity** $E$. These enter **utilities** and therefore **choice probabilities**.
 
-**Flow:** arrivals $\rightarrow$ utilities $U_{open,i}, U_{platform,i}$ $\rightarrow$ **logit** probability of open $\rightarrow$ increments $\Delta N_{open}, \Delta N_{platform}$. There is **no switching** after adoption: the split is built only from **new** adopters each step (a **non–agent-based** abstraction suited to long-run architecture share).
+**Flow:** arrivals $\rightarrow$ **logit** split $\rightarrow$ update per-type stocks on each side $\rightarrow$ (once platforms exist) **switching** logit with asymmetric leave costs $\rightarrow$ end-of-month $N_{open}, N_{platform}$.
 
 ---
 
@@ -527,11 +561,25 @@ For the first **$D$** months (sidebar: **platform entry delay**), the model sets
 
 ---
 
-#### 9. How to read the plots
+#### 9. Switching (existing users, after arrivals)
+
+The model keeps **per-type** installed mass on open and on platform: $S^{open}_i$, $S^{plat}_i$. Each month, **arrivals are allocated first**. Then utilities are recomputed using **post-arrival** $N_{open}, N_{platform}$ (and the corresponding $Q_{open}, Q_{platform}, E$). **Only after platform entry** ($k \ge D$), existing users may switch:
+
+$$
+\mathbb{P}(O\!\to\!P) = \sigma\big(\lambda\,(U_{platform,i} - U_{open,i} - \kappa^{O\to P}_i)\big), \quad
+\mathbb{P}(P\!\to\!O) = \sigma\big(\lambda\,(U_{open,i} - U_{platform,i} - \kappa^{P\to O}_i)\big).
+$$
+
+Higher **leave-open cost** $\kappa^{O\to P}_i$ makes moving **to** the platform harder; higher **leave-platform cost** $\kappa^{P\to O}_i$ makes **defecting** back to open harder (**asymmetric** switching friction). Expected flows: $S^{open}_i$ loses mass $\mathbb{P}(O\!\to\!P)\,S^{open}_i$ and gains $\mathbb{P}(P\!\to\!O)\,S^{plat}_i$ (and the converse on the platform side). This is distinct from the global lock-in term $L(t)$ in $U_{platform}$, which is an **ecosystem** disutility from dominance timing.
+
+---
+
+#### 10. How to read the plots
 
 - **Open / platform stocks:** cumulative $N_{open}, N_{platform}$ (must sum to adopters so far; TAM 1 when fully adopted).
 - **Share among adopters:** $s_{plat}$ vs $1-s_{plat}$—this is the object used for **dominance**, **enshittification onset**, and the headline **~90/10** style splits.
 - **$F, A, V, Q, L, E$:** show which **latent** forces are binding when the logit tilts toward one architecture.
+- **Monthly flows:** **New → open / platform** are arrivals only; **Switch →** bars are existing users moving architecture after arrivals.
 
 The **Commons institutional development speed** slider is **$k_F$** in $F(t)=F_{max}\,\sigma(k_F(t-t_F^\*))$: higher $k_F$ means institutions reach their curve **faster in calendar time**, raising $Q_{open}$ for a given $N_{open}$ and reshaping the utility gap **before** platform feedback fully runs away.
         """

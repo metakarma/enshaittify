@@ -49,11 +49,12 @@ A_MAX = (
 PLATFORM_ENTRY_DELAY = (
     "Months before incumbent platforms are assumed to ship agentic products at scale. Until "
     "then, every arriving adopter joins the open side, building N_open and letting F(t) advance "
-    "without platform competition. On a compressed 8-year horizon, this window is precious for "
-    "commons institutions to mature.\n\n"
+    "without platform competition. Existing adopters do not switch to the platform until the same "
+    "threshold (no platform product to switch to). On a compressed 8-year horizon, this window is "
+    "precious for commons institutions to mature.\n\n"
     "Math: monthly step index k = 0,1,…. If k < platform_entry_delay_months then "
-    "P_open_i = 1 for all types i; otherwise "
-    "P_open_i = 1 / (1 + exp(−λ · (U_open_i − U_platform_i))) (logistic in utility difference)."
+    "P_open_i = 1 for all new arrivals i; switching flows are zero. Otherwise arrivals use the "
+    "usual logit; then post-arrival switching uses asymmetric leave costs (see consumer-type help)."
 )
 
 # --- Scenario preset selectbox ---
@@ -253,4 +254,18 @@ CONSUMER_EPSILON = (
 CONSUMER_ZETA = (
     "Weight on **values / autonomy premium** V(t) in U_open.\n\n"
     "Math: zeta_i · V(t) in U_open only."
+)
+
+CONSUMER_LEAVE_OPEN = (
+    "Extra **utility hurdle** (same units as U_open, U_platform) for an existing **open** user of "
+    "this type to switch **to** the platform, after new arrivals are allocated each month. "
+    "Higher values mean users stay on open unless platform utility is clearly better.\n\n"
+    "Math: P(O→P) = σ(λ · (U_platform − U_open − κ^{O→P}_i)). Distinct from global lock-in L(t) "
+    "in U_platform."
+)
+
+CONSUMER_LEAVE_PLATFORM = (
+    "Extra **utility hurdle** for an existing **platform** user of this type to switch **back** "
+    "to open. Higher values capture data lock-in, habit, or switching hassle on the platform side.\n\n"
+    "Math: P(P→O) = σ(λ · (U_open − U_platform − κ^{P→O}_i))."
 )

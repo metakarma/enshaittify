@@ -204,13 +204,31 @@ def fig_arrivals(df: pd.DataFrame) -> go.Figure:
                 )
             )
     fig.update_layout(
-        title="New market entrants by consumer type (Bass diffusion, stacked)",
+        title=dict(
+            text="New market entrants by consumer type (Bass diffusion, stacked)",
+            x=0.5,
+            xref="paper",
+            xanchor="center",
+            y=0.97,
+            yref="paper",
+            yanchor="top",
+        ),
         xaxis_title="Year",
         yaxis_title="Arrivals (share of TAM per month)",
         hovermode="x unified",
         template="plotly_white",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=50, r=30, t=60, b=50),
+        legend=dict(
+            orientation="v",
+            x=0.99,
+            y=0.99,
+            xanchor="right",
+            yanchor="top",
+            bgcolor="rgba(255,255,255,0.82)",
+            bordercolor="rgba(0,0,0,0.12)",
+            borderwidth=1,
+            font=dict(size=11),
+        ),
+        margin=dict(l=50, r=24, t=56, b=50),
     )
     fig.update_xaxes(**_axis_template())
     fig.update_yaxes(**_axis_template())
@@ -231,8 +249,28 @@ def fig_flows(df: pd.DataFrame) -> go.Figure:
             opacity=0.85,
         )
     )
+    if "switch_open_to_platform" in df.columns:
+        fig.add_trace(
+            go.Bar(
+                x=df["year"],
+                y=df["switch_open_to_platform"],
+                name="Switch open → platform",
+                marker_color="#81c784",
+                opacity=0.75,
+            )
+        )
+    if "switch_platform_to_open" in df.columns:
+        fig.add_trace(
+            go.Bar(
+                x=df["year"],
+                y=df["switch_platform_to_open"],
+                name="Switch platform → open",
+                marker_color="#ef9a9a",
+                opacity=0.75,
+            )
+        )
     fig.update_layout(
-        title="Monthly adoption flows",
+        title="Monthly flows (arrivals then switching)",
         xaxis_title="Year",
         yaxis_title="Share of TAM",
         barmode="group",

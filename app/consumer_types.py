@@ -22,6 +22,9 @@ class ConsumerTypeSpec:
     delta: float  # enshittification aversion
     epsilon: float  # agent friction value
     zeta: float  # values/autonomy premium
+    # Switching (after arrivals each month): asymmetric "leave" costs in utility units
+    leave_open_cost: float  # κ_O→P: hurdle to move open → platform; P(O→P)=σ(λ(u_p−u_o−κ))
+    leave_platform_cost: float  # κ_P→O: hurdle to move platform → open; P(P→O)=σ(λ(u_o−u_p−κ))
 
 
 DEFAULT_CONSUMER_TYPES: Tuple[ConsumerTypeSpec, ...] = (
@@ -38,6 +41,8 @@ DEFAULT_CONSUMER_TYPES: Tuple[ConsumerTypeSpec, ...] = (
         delta=0.9,
         epsilon=0.15,
         zeta=1.0,
+        leave_open_cost=0.35,
+        leave_platform_cost=0.45,
     ),
     ConsumerTypeSpec(
         key="pragmatic_techies",
@@ -52,6 +57,8 @@ DEFAULT_CONSUMER_TYPES: Tuple[ConsumerTypeSpec, ...] = (
         delta=0.5,
         epsilon=0.3,
         zeta=0.5,
+        leave_open_cost=0.2,
+        leave_platform_cost=0.3,
     ),
     ConsumerTypeSpec(
         key="convenience_seekers",
@@ -66,6 +73,8 @@ DEFAULT_CONSUMER_TYPES: Tuple[ConsumerTypeSpec, ...] = (
         delta=0.1,
         epsilon=0.1,
         zeta=0.05,
+        leave_open_cost=0.1,
+        leave_platform_cost=0.25,
     ),
     ConsumerTypeSpec(
         key="reluctant_adopters",
@@ -80,6 +89,8 @@ DEFAULT_CONSUMER_TYPES: Tuple[ConsumerTypeSpec, ...] = (
         delta=0.05,
         epsilon=0.1,
         zeta=0.0,
+        leave_open_cost=0.25,
+        leave_platform_cost=0.35,
     ),
 )
 
@@ -188,3 +199,23 @@ def prob_open(utility_diff: float, lam: float) -> float:
     if x < -35:
         return 0.0
     return float(1.0 / (1.0 + np.exp(-x)))
+
+
+def prob_switch_open_to_platform(
+    u_open: float,
+    u_platform: float,
+    leave_open_cost: float,
+    lam: float,
+) -> float:
+    """P(O→P) = σ(λ (u_platform − u_open − κ_O→P))."""
+    return 1.0 - prob_open(u_open - u_platform + leave_open_cost, lam)
+
+
+def prob_switch_platform_to_open(
+    u_open: float,
+    u_platform: float,
+    leave_platform_cost: float,
+    lam: float,
+) -> float:
+    """P(P→O) = σ(λ (u_open − u_platform − κ_P→O))."""
+    return prob_open(u_open - u_platform - leave_platform_cost, lam)
