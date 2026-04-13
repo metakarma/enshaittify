@@ -45,6 +45,26 @@ def _init_state() -> None:
             st.session_state[k] = v
 
 
+def _plotly_match_figure_height(fig) -> None:
+    """Render Plotly at the figure's layout height so shorter charts stay shorter.
+
+    In a multi-column row, Streamlit can stretch chart elements to the row's max height unless
+    the element height is pinned — which hides intentional magnitude scaling (e.g. Sankey pair).
+    """
+    h = fig.layout.height
+    for kwargs in (
+        dict(width="stretch", height=int(h)) if h is not None else dict(width="stretch"),
+        dict(use_container_width=True, height=int(h)) if h is not None else dict(use_container_width=True),
+        dict(use_container_width=True),
+    ):
+        try:
+            st.plotly_chart(fig, **kwargs)
+            return
+        except TypeError:
+            continue
+    st.plotly_chart(fig)
+
+
 def _apply_preset() -> None:
     name = st.session_state.get("scenario_preset", "Custom")
     if name == "Custom":
@@ -449,18 +469,18 @@ with flow_r:
 st.caption(
     "**Sankeys:** cumulative **switching volume** (sum of monthly flows as a share of TAM), by "
     "consumer type—each diagram sums one direction over the 8-year run. "
-    "**Chart height** of the platform→open figure is proportional to its total vs the open→platform total "
-    "so the two magnitudes are comparable side by side."
+    "The **platform→open** Plotly panel uses a shorter **on-screen height** when that cumulative total "
+    "is smaller than open→platform (each Sankey still fills its own panel; the panels are not equal height)."
 )
-san_l, san_r = st.columns(2)
+try:
+    san_l, san_r = st.columns(2, vertical_alignment="top")
+except TypeError:
+    san_l, san_r = st.columns(2)
 tot_o2p = float(df["switch_open_to_platform"].sum()) if "switch_open_to_platform" in df.columns else 0.0
 with san_l:
-    st.plotly_chart(fig_sankey_open_to_platform(df), use_container_width=True)
+    _plotly_match_figure_height(fig_sankey_open_to_platform(df))
 with san_r:
-    st.plotly_chart(
-        fig_sankey_platform_to_open(df, volume_reference=tot_o2p),
-        use_container_width=True,
-    )
+    _plotly_match_figure_height(fig_sankey_platform_to_open(df, volume_reference=tot_o2p))
 
 with st.expander("Model notes (equations & interpretation)"):
     st.markdown(

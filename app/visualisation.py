@@ -24,8 +24,10 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
 
 
 # Shared layout: left Sankey uses full height; right Sankey height scales by (P→O total)/(O→P total).
+# Do not clamp the right chart to a large minimum — that hides the magnitude gap (e.g. 10% vs 38% TAM).
 _SANKEY_HEIGHT = 420
-_SANKEY_MIN_HEIGHT = 200
+_SANKEY_FLOOR_DRAWN = 72  # tiny flows still need a readable strip; keep well below ~½ reference height
+_SANKEY_EMPTY_MIN = 200  # placeholder / no-data layouts
 _SANKEY_MARGIN = dict(l=28, r=28, t=52, b=28)
 _SANKEY_X_LEFT = 0.02
 _SANKEY_X_RIGHT = 0.98
@@ -412,9 +414,10 @@ def fig_sankey_platform_to_open(
     else:
         ref = max(tot_p2o, 1e-15)
     ratio = tot_p2o / ref if ref > 1e-15 else 1.0
-    plot_height = max(_SANKEY_MIN_HEIGHT, int(round(_SANKEY_HEIGHT * ratio)))
+    raw_h = int(round(_SANKEY_HEIGHT * ratio)) if ref > 1e-15 else _SANKEY_HEIGHT
     pairs = [(k, float(df[f"switch_PtoO_{k}"].sum())) for k in keys if f"switch_PtoO_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
+    plot_height = max(_SANKEY_FLOOR_DRAWN, raw_h) if pairs else max(_SANKEY_EMPTY_MIN, raw_h)
     if not pairs:
         fig = go.Figure()
         fig.add_annotation(
