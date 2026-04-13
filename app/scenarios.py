@@ -18,6 +18,18 @@ class Scenario:
 
 SCENARIOS: List[Scenario] = [
     Scenario(
+        name="Pre-agent web (email-like)",
+        description=(
+            "Analogue to **email and the early web**: open protocols lead briefly, then integrated "
+            "platforms win on convenience and quality; ~**10%** of adopters stay on non-platform paths "
+            "(self-hosting, standards-first). Calibrated on the 8y monthly run."
+        ),
+        k_F=0.2,
+        Q_plat_base=0.8,
+        A_max=0.32,
+        enshit_threshold=0.6,
+    ),
+    Scenario(
         name="Platform Capture",
         description="Slow commons institutions, strong platform incumbency, limited agent leverage, early rent extraction.",
         k_F=0.2,

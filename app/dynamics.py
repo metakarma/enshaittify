@@ -19,49 +19,49 @@ def sigmoid(x: float) -> float:
 @dataclass
 class ModelParams:
     # Q_platform
-    Q_plat_base: float = 0.5
-    Q_plat_max: float = 0.95
-    k_plat: float = 8.0
-    plat_threshold: float = 0.35
-    enshit_quality_drag: float = 0.35
+    Q_plat_base: float = 0.8
+    Q_plat_max: float = 0.99
+    k_plat: float = 14.0
+    plat_threshold: float = 0.24
+    enshit_quality_drag: float = 0.26
 
     # Q_open
-    Q_open_base: float = 0.15
-    mu: float = 0.45
+    Q_open_base: float = 0.05
+    mu: float = 0.22
 
     # F(t) institutional maturity
-    F_max: float = 0.8
-    k_F: float = 0.5
+    F_max: float = 0.68
+    k_F: float = 0.2
     t_F_inflection: float = 5.0
 
     # Lock-in
-    L_max: float = 0.4
+    L_max: float = 0.38
     k_L: float = 0.3
 
     # Enshittification (threshold is platform share *among adopters*, not cumulative TAM share)
-    E_max: float = 0.6
+    E_max: float = 0.48
     k_E: float = 12.0
     enshit_threshold: float = 0.6
     enshit_ramp_years: float = 5.0
 
     # Agent friction
-    A_max: float = 0.5
+    A_max: float = 0.32
     k_A: float = 0.3
 
     # Values / autonomy
-    V_base: float = 0.1
-    V_awareness: float = 0.3
+    V_base: float = 0.05
+    V_awareness: float = 0.18
     k_V: float = 0.4
     t_V_inflection: float = 6.0
 
     # Choice
-    choice_lambda: float = 5.0
+    choice_lambda: float = 15.0
 
     # Market timing: months before platform incumbents offer agentic products (all arrivals → open until then)
-    platform_entry_delay_months: int = 24
+    platform_entry_delay_months: int = 14
 
     # Dominance threshold for lock-in clock (platform share)
-    dominance_share_threshold: float = 0.5
+    dominance_share_threshold: float = 0.49
 
 
 def institutional_maturity(t: float, params: ModelParams) -> float:

@@ -32,11 +32,11 @@ from app.visualisation import (
 
 def _init_state() -> None:
     defaults = {
-        "sv_k_F": 0.5,
-        "sv_Q_plat_base": 0.5,
-        "sv_A_max": 0.5,
+        "sv_k_F": 0.2,
+        "sv_Q_plat_base": 0.8,
+        "sv_A_max": 0.32,
         "sv_enshit_threshold": 0.6,
-        "scenario_preset": "Custom",
+        "scenario_preset": "Pre-agent web (email-like)",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -129,7 +129,7 @@ platform_entry_delay_months = st.sidebar.slider(
     "Open adoption lead — platform entry delay (months)",
     min_value=0,
     max_value=96,
-    value=24,
+    value=14,
     step=1,
     help=uh.PLATFORM_ENTRY_DELAY,
 )
@@ -164,44 +164,44 @@ enshit_threshold = float(st.session_state["sv_enshit_threshold"])
 
 with st.sidebar.expander("Institutional & commons (Q_open)", expanded=False):
     mu = st.sidebar.slider(
-        "μ — institutional effectiveness", 0.1, 1.0, 0.45, 0.01, help=uh.MU
+        "μ — institutional effectiveness", 0.1, 1.0, 0.22, 0.01, help=uh.MU
     )
     Q_open_base = st.sidebar.slider(
-        "Q_open_base", 0.05, 0.4, 0.15, 0.01, help=uh.Q_OPEN_BASE
+        "Q_open_base", 0.05, 0.4, 0.05, 0.01, help=uh.Q_OPEN_BASE
     )
-    F_max = st.sidebar.slider("F_max", 0.2, 1.0, 0.8, 0.01, help=uh.F_MAX)
+    F_max = st.sidebar.slider("F_max", 0.2, 1.0, 0.68, 0.01, help=uh.F_MAX)
     t_F_inflection = st.sidebar.slider(
         "t_F_inflection (years)", 1.0, 15.0, 5.0, 0.25, help=uh.T_F_INFLECTION
     )
 
 with st.sidebar.expander("Platform quality curve", expanded=False):
     Q_plat_max = st.sidebar.slider(
-        "Q_plat_max", 0.7, 1.0, 0.95, 0.01, help=uh.Q_PLAT_MAX
+        "Q_plat_max", 0.7, 1.0, 0.99, 0.01, help=uh.Q_PLAT_MAX
     )
     k_plat = st.sidebar.slider(
-        "k_plat (sigmoid steepness)", 1.0, 20.0, 8.0, 0.5, help=uh.K_PLAT
+        "k_plat (sigmoid steepness)", 1.0, 20.0, 14.0, 0.5, help=uh.K_PLAT
     )
     plat_threshold = st.sidebar.slider(
-        "plat_threshold", 0.1, 0.6, 0.35, 0.01, help=uh.PLAT_THRESHOLD
+        "plat_threshold", 0.1, 0.6, 0.24, 0.01, help=uh.PLAT_THRESHOLD
     )
     enshit_quality_drag = st.sidebar.slider(
-        "enshit_quality_drag", 0.0, 1.0, 0.35, 0.01, help=uh.ENSHIT_QUALITY_DRAG
+        "enshit_quality_drag", 0.0, 1.0, 0.26, 0.01, help=uh.ENSHIT_QUALITY_DRAG
     )
 
 with st.sidebar.expander("Lock-in & dominance", expanded=False):
-    L_max = st.sidebar.slider("L_max", 0.1, 0.8, 0.4, 0.01, help=uh.L_MAX)
+    L_max = st.sidebar.slider("L_max", 0.1, 0.8, 0.38, 0.01, help=uh.L_MAX)
     k_L = st.sidebar.slider("k_L", 0.05, 1.0, 0.3, 0.01, help=uh.K_L)
     dominance_share_threshold = st.sidebar.slider(
         "Platform dominance share (lock-in clock)",
         0.4,
         0.7,
-        0.5,
+        0.49,
         0.01,
         help=uh.DOMINANCE_SHARE_THRESHOLD,
     )
 
 with st.sidebar.expander("Enshittification dynamics", expanded=False):
-    E_max = st.sidebar.slider("E_max", 0.2, 1.0, 0.6, 0.01, help=uh.E_MAX)
+    E_max = st.sidebar.slider("E_max", 0.2, 1.0, 0.48, 0.01, help=uh.E_MAX)
     k_E = st.sidebar.slider("k_E (sharpness)", 1.0, 30.0, 12.0, 0.5, help=uh.K_E)
     enshit_ramp_years = st.sidebar.slider(
         "enshit_ramp_years", 1.0, 15.0, 5.0, 0.5, help=uh.ENSHIT_RAMP_YEARS
@@ -211,9 +211,9 @@ with st.sidebar.expander("Agents & values", expanded=False):
     k_A = st.sidebar.slider(
         "k_A (agent friction ramp)", 0.05, 1.0, 0.3, 0.01, help=uh.K_A
     )
-    V_base = st.sidebar.slider("V_base", 0.0, 0.3, 0.1, 0.01, help=uh.V_BASE)
+    V_base = st.sidebar.slider("V_base", 0.0, 0.3, 0.05, 0.01, help=uh.V_BASE)
     V_awareness = st.sidebar.slider(
-        "V_awareness", 0.0, 0.6, 0.3, 0.01, help=uh.V_AWARENESS
+        "V_awareness", 0.0, 0.6, 0.18, 0.01, help=uh.V_AWARENESS
     )
     k_V = st.sidebar.slider("k_V", 0.1, 1.0, 0.4, 0.01, help=uh.K_V)
     t_V_inflection = st.sidebar.slider(
@@ -222,7 +222,7 @@ with st.sidebar.expander("Agents & values", expanded=False):
 
 with st.sidebar.expander("Choice & diffusion", expanded=False):
     choice_lambda = st.sidebar.slider(
-        "λ — choice sensitivity", 0.5, 15.0, 5.0, 0.5, help=uh.CHOICE_LAMBDA
+        "λ — choice sensitivity", 0.5, 15.0, 15.0, 0.5, help=uh.CHOICE_LAMBDA
     )
 
 with st.sidebar.expander("Consumer types & mix", expanded=False):
