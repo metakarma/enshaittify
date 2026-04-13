@@ -16,4 +16,4 @@ The **Enshait** model is a **discrete-time stock–flow simulation** of how the 
 
 ---
 
-*Trim or expand for your LLM context window as needed.*
+*Trim or expand for your LLM context window as needed. For **preset storylines** (email / platform capture / protocol window / federated equilibrium / late reversal), see **`LLM_CONTEXT_SCENARIOS.md`**.*
