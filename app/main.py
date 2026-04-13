@@ -66,6 +66,14 @@ st.markdown(
     """
     <style>
     footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
+    /* KaTeX in st.markdown: Streamlit renders $...$ / $$...$$ — CSS only affects layout, not parsing */
+    div[data-testid="stMarkdownContainer"] .katex-display {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.35em 0;
+        max-width: 100%;
+    }
+    div[data-testid="stMarkdownContainer"] .katex { font-size: 1.05em; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -407,124 +415,124 @@ with st.expander("Model notes (equations & interpretation)"):
         r"""
 #### 1. Architecture (what the simulation is)
 
-The model is a **discrete-time stock–flow system** on a **fixed total market** (TAM = 1). Each month, a **mass of new adopters** “arrives”; each adopter chooses **open** or **platform** architecture. Cumulative adopters are \\(N_{open}(t)\\) and \\(N_{platform}(t)\\); **platform share among adopters** is \\(s_{plat} = N_{platform}/(N_{open}+N_{platform})\\) (only people who have adopted either side count).
+The model is a **discrete-time stock–flow system** on a **fixed total market** (TAM = 1). Each month, a **mass of new adopters** “arrives”; each adopter chooses **open** or **platform** architecture. Cumulative adopters are $N_{open}(t)$ and $N_{platform}(t)$; **platform share among adopters** is $s_{plat} = N_{platform}/(N_{open}+N_{platform})$ (only people who have adopted either side count).
 
-**Heterogeneity:** users differ by **consumer type** \\(i\\) (four segments). Each type has its own **diffusion timing** (shifted Bass) and its own **tastes** \\((\alpha_i,\ldots,\zeta_i)\\) in utility. **Mix weights** in the sidebar are renormalised to population shares \\(\omega_i\\) so \\(\sum_i \omega_i = 1\\).
+**Heterogeneity:** users differ by **consumer type** $i$ (four segments). Each type has its own **diffusion timing** (shifted Bass) and its own **tastes** $(\alpha_i,\ldots,\zeta_i)$ in utility. **Mix weights** in the sidebar are renormalised to population shares $\omega_i$ so $\sum_i \omega_i = 1$.
 
-**Latent state (same for everyone each month):** before choices, the code updates **institutional maturity** \\(F(t)\\), **agent-friction relief** \\(A(t)\\), **values / autonomy premium** \\(V(t)\\), **platform signal quality** \\(Q_{platform}\\), **commons signal quality** \\(Q_{open}\\), **lock-in disutility** \\(L\\), and **enshittification intensity** \\(E\\). These enter **utilities** and therefore **choice probabilities**.
+**Latent state (same for everyone each month):** before choices, the code updates **institutional maturity** $F(t)$, **agent-friction relief** $A(t)$, **values / autonomy premium** $V(t)$, **platform signal quality** $Q_{platform}$, **commons signal quality** $Q_{open}$, **lock-in disutility** $L$, and **enshittification intensity** $E$. These enter **utilities** and therefore **choice probabilities**.
 
-**Flow:** arrivals \\(\rightarrow\\) utilities \\(U_{open,i}, U_{platform,i}\\) \\(\rightarrow\\) **logit** probability of open \\(\rightarrow\\) increments \\(\Delta N_{open}, \Delta N_{platform}\\). There is **no switching** after adoption: the split is built only from **new** adopters each step (a **non–agent-based** abstraction suited to long-run architecture share).
+**Flow:** arrivals $\rightarrow$ utilities $U_{open,i}, U_{platform,i}$ $\rightarrow$ **logit** probability of open $\rightarrow$ increments $\Delta N_{open}, \Delta N_{platform}$. There is **no switching** after adoption: the split is built only from **new** adopters each step (a **non–agent-based** abstraction suited to long-run architecture share).
 
 ---
 
 #### 2. Time grid and horizon
 
-- **Horizon:** 8 **years**; **monthly** steps (\\(\Delta t = 1/12\\) year, 96 periods).
-- **Calendar time** \\(t\\) passed into \\(F, A, V, \\ldots\\) is always **years since start** (step index \\(\\times\\) \\(\Delta t\\)).
-- **Why short and monthly:** the app stresses **speed asymmetry**: agentic adoption and platform feedback can move month-to-month, while **commons institutions** (\\(F\\)) move through \\(F(t)\\) on the same calendar clock—so **\\(k_F\\)** and **inflection timing** feel urgent.
+- **Horizon:** 8 **years**; **monthly** steps ($\Delta t = 1/12$ year, 96 periods).
+- **Calendar time** $t$ passed into $F, A, V, \ldots$ is always **years since start** (step index $\times$ $\Delta t$).
+- **Why short and monthly:** the app stresses **speed asymmetry**: agentic adoption and platform feedback can move month-to-month, while **commons institutions** ($F$) move through $F(t)$ on the same calendar clock—so **$k_F$** and **inflection timing** feel urgent.
 
 ---
 
 #### 3. Sigmoid / logistic building blocks
 
 Several pieces use the **logistic sigmoid**
-\\[
+$$
 \sigma(x) = \frac{1}{1 + e^{-x}}
-\\]
-clipped for numerical stability at large \\(|x|\\). In this model \\(\sigma\\) is **not** a demand curve by itself; it is a **smooth switch** between regimes:
+$$
+clipped for numerical stability at large $|x|$. In this model $\sigma$ is **not** a demand curve by itself; it is a **smooth switch** between regimes:
 
 | Where | Role |
 |-------|------|
-| \\(F(t)\\), \\(V(t)\\) | **S-curves in time** (institutions / norms turning “on”) |
-| \\(Q_{platform}(N_{platform})\\) | **Quality vs scale**: platform experience improves as installed base crosses a threshold |
-| Onset of \\(E\\) vs \\(s_{plat}\\) | **Enshittification** turns on when platform **share among adopters** crosses \\(\theta\\) |
+| $F(t)$, $V(t)$ | **S-curves in time** (institutions / norms turning “on”) |
+| $Q_{platform}(N_{platform})$ | **Quality vs scale**: platform experience improves as installed base crosses a threshold |
+| Onset of $E$ vs $s_{plat}$ | **Enshittification** turns on when platform **share among adopters** crosses $\theta$ |
 
-**Choice** uses the same mathematical family: the probability of choosing open is a **logistic (logit)** in the **utility gap**, i.e. a **random utility model** where \\(\lambda\\) scales how sharply small differences in utility translate into market shares. Large \\(\lambda\\) \\(\Rightarrow\\) **winner-take-most** split; small \\(\lambda\\) \\(\\Rightarrow\\) **mixed** split even when one side is somewhat better.
+**Choice** uses the same mathematical family: the probability of choosing open is a **logistic (logit)** in the **utility gap**, i.e. a **random utility model** where $\lambda$ scales how sharply small differences in utility translate into market shares. Large $\lambda$ $\Rightarrow$ **winner-take-most** split; small $\lambda$ $\Rightarrow$ **mixed** split even when one side is somewhat better.
 
 ---
 
 #### 4. Arrivals (shifted Bass, per type)
 
-Each type \\(i\\) follows a **Bass diffusion** in continuous time with innovation \\(p_i\\) and imitation \\(q_i\\), **time-shifted** so its adoption-rate peak sits near its **peak arrival year**. For each month, the code takes the **increment** of the Bass cumulative curve on that interval, **normalises** so type \\(i\\)’s total arrival mass over the horizon equals \\(\omega_i\\), and builds per-step weights \\(a_{i,k}\\) (arrivals of type \\(i\\) in step \\(k\\)). Total arrivals in step \\(k\\) sum to the global diffusion pace implied by those curves (not necessarily 1 in one step—mass accumulates to full TAM over the run).
+Each type $i$ follows a **Bass diffusion** in continuous time with innovation $p_i$ and imitation $q_i$, **time-shifted** so its adoption-rate peak sits near its **peak arrival year**. For each month, the code takes the **increment** of the Bass cumulative curve on that interval, **normalises** so type $i$’s total arrival mass over the horizon equals $\omega_i$, and builds per-step weights $a_{i,k}$ (arrivals of type $i$ in step $k$). Total arrivals in step $k$ sum to the global diffusion pace implied by those curves (not necessarily 1 in one step—mass accumulates to full TAM over the run).
 
 ---
 
 #### 5. Latent dynamics (equations in code)
 
-**Institutions:** \\(F(t) = F_{max}\,\sigma\!\big(k_F (t - t_F^\*)\big)\\).
+**Institutions:** $F(t) = F_{max}\,\sigma\!\big(k_F (t - t_F^\*)\big)$.
 
-**Agent friction (open-side convenience):** \\(A(t) = A_{max}\big(1 - e^{-k_A t}\big)\\) (exponential **saturation**, not a sigmoid).
+**Agent friction (open-side convenience):** $A(t) = A_{max}\big(1 - e^{-k_A t}\big)$ (exponential **saturation**, not a sigmoid).
 
-**Values / autonomy:** \\(V(t) = V_{base} + V_{awareness}\,\sigma\!\big(k_V (t - t_V^\*)\big)\\).
+**Values / autonomy:** $V(t) = V_{base} + V_{awareness}\,\sigma\!\big(k_V (t - t_V^\*)\big)$.
 
 **Commons signal quality:**  
-\\[
+$$
 Q_{open} = \mathrm{clip}\!\Big(Q_{open}^{base} + \mu\,F(t)\,\log(1+N_{open}),\,0,\,1\Big).
-\\]  
+$$  
 So open quality rises with **institutional maturity** and **open installed base** (log congestion / ecosystem depth).
 
-**Platform signal quality:** let \\(n^\dagger\\) denote the **plat threshold** parameter (the installed-base level in the code). With \\(\sigma_{plat} = \sigma\!\big(k_{plat}(N_{platform} - n^\dagger)\big)\\),  
-\\[
+**Platform signal quality:** let $n^\dagger$ denote the **plat threshold** parameter (the installed-base level in the code). With $\sigma_{plat} = \sigma\!\big(k_{plat}(N_{platform} - n^\dagger)\big)$,  
+$$
 Q_{platform} = \mathrm{clip}\!\Big(Q_{plat}^{base} + (Q_{plat}^{max}-Q_{plat}^{base})\,\sigma_{plat} - E \cdot d_{enshit},\,0,\,1\Big).
-\\]  
-So quality rises with **platform scale**, then is dragged down by **enshittification** \\(E\\) with strength \\(d_{enshit}\\) (`enshit_quality_drag` in the sidebar).
+$$  
+So quality rises with **platform scale**, then is dragged down by **enshittification** $E$ with strength $d_{enshit}$ (`enshit_quality_drag` in the sidebar).
 
-**Lock-in:** Let \\(s_{plat}\\) be share among adopters. If \\(s_{plat}\\) exceeds a **dominance** threshold, a clock records **how long** dominance has held; \\(T_{platform}\\) is that elapsed **dominance time** (years). Then  
-\\[
+**Lock-in:** Let $s_{plat}$ be share among adopters. If $s_{plat}$ exceeds a **dominance** threshold, a clock records **how long** dominance has held; $T_{platform}$ is that elapsed **dominance time** (years). Then  
+$$
 L = L_{max}\big(1 - e^{-k_L\,T_{platform}}\big).
-\\]  
-If not dominant, \\(T_{platform}\\) is reset to 0, so **lock-in disutility** does not accumulate.
+$$  
+If not dominant, $T_{platform}$ is reset to 0, so **lock-in disutility** does not accumulate.
 
-**Enshittification:** Let \\(s_{plat} = N_{platform}/(N_{open}+N_{platform})\\). A **potential** intensity is  
-\\[
+**Enshittification:** Let $s_{plat} = N_{platform}/(N_{open}+N_{platform})$. A **potential** intensity is  
+$$
 E_{raw} = E_{max}\,\sigma\!\big(k_E (s_{plat} - \theta_{enshit})\big).
-\\]  
-When \\(s_{plat}\\) first reaches \\(\theta_{enshit}\\), the model **starts a timer** \\(t_{enshit}^{start}\\). A **time ramp** (0 to 1 over `enshit_ramp_years`) multiplies \\(E_{raw}\\) so \\(E\\) does not jump to full strength instantly. A **competitive brake** \\(\mathrm{brake}(N_{open}) = 1 - \tfrac{1}{2}\min(1,\,N_{open}/0.3)\\) slows enshittification when the open side still has **material** installed base. Finally \\(E = \mathrm{clip}(E_{raw}\cdot\text{ramp}\cdot\text{brake},\,0,\,E_{max})\\).
+$$  
+When $s_{plat}$ first reaches $\theta_{enshit}$, the model **starts a timer** $t_{enshit}^{start}$. A **time ramp** (0 to 1 over `enshit_ramp_years`) multiplies $E_{raw}$ so $E$ does not jump to full strength instantly. A **competitive brake** $\mathrm{brake}(N_{open}) = 1 - \tfrac{1}{2}\min(1,\,N_{open}/0.3)$ slows enshittification when the open side still has **material** installed base. Finally $E = \mathrm{clip}(E_{raw}\cdot\text{ramp}\cdot\text{brake},\,0,\,E_{max})$.
 
 ---
 
 #### 6. Utilities (why two different formulas)
 
-Per type \\(i\\), **open** utility rewards signal quality, **open** network size, agent friction relief, and values—all things the narrative ties to **commons + tools**:
+Per type $i$, **open** utility rewards signal quality, **open** network size, agent friction relief, and values—all things the narrative ties to **commons + tools**:
 
-\\[
+$$
 U_{open,i} = \alpha_i Q_{open} + \beta_i N_{open} + \epsilon_i A + \zeta_i V.
-\\]
+$$
 
-**Platform** utility rewards platform quality and **platform** network size, and is penalised by lock-in and enshittification (tastes \\(\gamma_i, \delta_i\\)):
+**Platform** utility rewards platform quality and **platform** network size, and is penalised by lock-in and enshittification (tastes $\gamma_i, \delta_i$):
 
-\\[
+$$
 U_{platform,i} = \alpha_i Q_{platform} + \beta_i N_{platform} - \gamma_i L - \delta_i E.
-\\]
+$$
 
-**Interpretation:** \\(\alpha_i\\) is **quality sensitivity**; \\(\beta_i\\) is **direct network effect** on each side; \\(\epsilon_i, \zeta_i\\) matter only for open; \\(\gamma_i, \delta_i\\) only for platform pain. The **same** \\(\alpha_i, \beta_i\\) appear on both sides so “quality” and “scale” are comparable—but **\\(Q_{open}\\)** and **\\(Q_{platform}\\)** follow **different** state equations.
+**Interpretation:** $\alpha_i$ is **quality sensitivity**; $\beta_i$ is **direct network effect** on each side; $\epsilon_i, \zeta_i$ matter only for open; $\gamma_i, \delta_i$ only for platform pain. The **same** $\alpha_i, \beta_i$ appear on both sides so “quality” and “scale” are comparable—but **$Q_{open}$** and **$Q_{platform}$** follow **different** state equations.
 
 ---
 
 #### 7. Logit choice and split of arrivals
 
-After platform entry (see below), for each arriving mass of type \\(i\\),
+After platform entry (see below), for each arriving mass of type $i$,
 
-\\[
+$$
 p_{open,i} = \frac{1}{1 + e^{-\lambda\,(U_{open,i} - U_{platform,i})}}.
-\\]
+$$
 
-Then \\(\Delta N_{open,i} = a_{i,k}\, p_{open,i}\\), \\(\Delta N_{platform,i} = a_{i,k}\, (1-p_{open,i})\\) in step \\(k\\). **\\(\lambda\\)** is the sidebar “choice sensitivity”: it is the **steepness** of the logistic in **utility difference** (formally, random-utility scale).
+Then $\Delta N_{open,i} = a_{i,k}\, p_{open,i}$, $\Delta N_{platform,i} = a_{i,k}\, (1-p_{open,i})$ in step $k$. **$\lambda$** is the sidebar “choice sensitivity”: it is the **steepness** of the logistic in **utility difference** (formally, random-utility scale).
 
 ---
 
 #### 8. Platform entry delay
 
-For the first **\\(D\\)** months (sidebar: **platform entry delay**), the model sets \\(p_{open}=1\\): incumbents are treated as **not yet** offering the agentic product, so **all** arrivals go open. This builds early \\(N_{open}\\) and lets \\(F(t)\\) advance—analogous to **protocols and grassroots tooling ahead of big-platform agents at scale**.
+For the first **$D$** months (sidebar: **platform entry delay**), the model sets $p_{open}=1$: incumbents are treated as **not yet** offering the agentic product, so **all** arrivals go open. This builds early $N_{open}$ and lets $F(t)$ advance—analogous to **protocols and grassroots tooling ahead of big-platform agents at scale**.
 
 ---
 
 #### 9. How to read the plots
 
-- **Open / platform stocks:** cumulative \\(N_{open}, N_{platform}\\) (must sum to adopters so far; TAM 1 when fully adopted).
-- **Share among adopters:** \\(s_{plat}\\) vs \\(1-s_{plat}\\)—this is the object used for **dominance**, **enshittification onset**, and the headline **~90/10** style splits.
-- **\\(F, A, V, Q, L, E\\):** show which **latent** forces are binding when the logit tilts toward one architecture.
+- **Open / platform stocks:** cumulative $N_{open}, N_{platform}$ (must sum to adopters so far; TAM 1 when fully adopted).
+- **Share among adopters:** $s_{plat}$ vs $1-s_{plat}$—this is the object used for **dominance**, **enshittification onset**, and the headline **~90/10** style splits.
+- **$F, A, V, Q, L, E$:** show which **latent** forces are binding when the logit tilts toward one architecture.
 
-The **Commons institutional development speed** slider is **\\(k_F\\)** in \\(F(t)=F_{max}\,\sigma(k_F(t-t_F^\*))\\): higher \\(k_F\\) means institutions reach their curve **faster in calendar time**, raising \\(Q_{open}\\) for a given \\(N_{open}\\) and reshaping the utility gap **before** platform feedback fully runs away.
+The **Commons institutional development speed** slider is **$k_F$** in $F(t)=F_{max}\,\sigma(k_F(t-t_F^\*))$: higher $k_F$ means institutions reach their curve **faster in calendar time**, raising $Q_{open}$ for a given $N_{open}$ and reshaping the utility gap **before** platform feedback fully runs away.
         """
     )
