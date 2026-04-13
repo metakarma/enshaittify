@@ -83,7 +83,7 @@ def run_simulation(
         )
 
         L = lock_in_disutility(T_platform, params)
-        F = institutional_maturity(t, params)
+        F = institutional_maturity(t, N_open, params)
         A = agent_friction_reduction(t, params)
         V = values_premium(t, params)
 

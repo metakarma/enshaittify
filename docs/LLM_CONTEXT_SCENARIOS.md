@@ -1,6 +1,6 @@
 # Enshait — narrative LLM context: scenario presets and the decentralisation story
 
-Use this alongside **`docs/LLM_CONTEXT.md`** when chats should explain **why** the app offers these story bundles, not only the equations. Presets live in **`app/scenarios.py`**; each overwrites four **Key levers** only: **`k_F`**, **`Q_plat_base`**, **`A_max`**, **`enshit_threshold`**. All other sliders stay as the user left them.
+Use this alongside **`docs/LLM_CONTEXT.md`** when chats should explain **why** the app offers these story bundles, not only the equations. Presets live in **`app/scenarios.py`**; each overwrites four **Key levers** only: **`k_F`**, **`Q_plat_base`**, **`A_max`**, **`enshit_threshold`**. All other sliders stay as the user left them—including **φ** (**open adoption → faster $F(t)$** via **$k_F^{\mathrm{eff}} = k_F(1+\varphi N_{\mathrm{open}})$**), which is **not** part of any preset.
 
 ---
 
@@ -9,6 +9,8 @@ Use this alongside **`docs/LLM_CONTEXT.md`** when chats should explain **why** t
 The model’s default story preset is **“Pre-agent web (email-like)”**. It is meant to evoke something readers already know: **open protocols got there first** (SMTP, IMAP, the early web), then **integrated products** won most users on **convenience, polish, and default choices**—not because standards vanished, but because **most people rationally take the path of least friction**. A **minority** remains on **non-platform** routes (self-hosting, stubborn standards-first tooling). The app text describes that residue as on the order of **~10%** of adopters staying on open-leaning paths in the **8-year monthly** run under that calibration—an **illustrative** number, not an empirical forecast.
 
 The **agentic** twist is the same structural temptation **sped up**: if proprietary **signal processing** (routing, memory, identity, payments) is **good enough fast enough**, and **commons institutions** (data unions, steward loyalty, enforceable member-first rules) mature **slowly**, the window where **decentralisation is competitive** can **close** before **F(t)** and **N_open** make the open side credibly attractive. **Agents** are double-edged in the model: **`A(t)`** lowers friction for **using open protocols**, but if platforms keep a **quality lead** (**`Q_plat_base`**, the installed-base sigmoid on **`N_platform`**), the net story can still be **platform-led**.
+
+With **φ > 0**, **$F(t)$** is not on a fixed calendar schedule alone: **institutions mature faster when $N_{\mathrm{open}}$ is larger**, tightening the **open adoption ↔ institutional capacity** feedback (and making **early stall** on the open side harder to recover from without time or other levers). That supports narratives about **FIDU-like investment before narrow “rational” adoption** to escape a chicken-and-egg trap; **φ = 0** turns that coupling off for comparison.
 
 So the presets are ordered arguments in that drama: **how fast institutions catch up** (**`k_F`**), **how strong the platform’s head start feels** (**`Q_plat_base`**), **how much agents help the open experience** (**`A_max`**), and **how much dominance platforms need before rent extraction ramps** (**`enshit_threshold`**, among adopters—not TAM share).
 
@@ -38,7 +40,7 @@ A **middle world**: institutions move at a **credible** pace, platforms are **no
 ## How an LLM should use this file
 
 - Treat presets as **paired narratives and parameter vectors**, not guarantees about the real world.  
-- When comparing **decentralisation-friendly** vs **capture** stories, anchor on **`k_F`** (time), **`Q_plat_base`** (incumbent appeal), **`A_max`** (agents on open), and **`enshit_threshold`** (when extraction politics “switch on”).  
+- When comparing **decentralisation-friendly** vs **capture** stories, anchor on **`k_F`** (baseline institutional speed), **`Q_plat_base`** (incumbent appeal), **`A_max`** (agents on open), and **`enshit_threshold`** (when extraction politics “switch on”); add **φ** when discussing **supply-side** loops and whether **$F$** tracks **$N_{\mathrm{open}}$**.  
 - Remind users that **switching costs**, **consumer-type mix**, **platform entry delay**, and **λ** still matter—presets only set **four** numbers.
 
 ---

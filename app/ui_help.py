@@ -70,14 +70,19 @@ catches up to adoption faster, improving commons signal quality for a given inst
 
 **Math**
 
+Effective logistic steepness depends on **φ** (advanced slider **φ — F speed scales with N_open**):
 $$
-F(t) = F_{\max}\,\sigma\!\left(k_F (t - t_{F,\mathrm{inflect}})\right),
+k_F^{\mathrm{eff}} = k_F\bigl(1 + \varphi\,N_{\mathrm{open}}\bigr).
+$$
+$$
+F(t) = F_{\max}\,\sigma\!\left(k_F^{\mathrm{eff}} (t - t_{F,\mathrm{inflect}})\right),
 \quad \sigma(x)=\frac{1}{1+e^{-x}}.
 $$
+$N_{\mathrm{open}}$ is cumulative open adoption (TAM share) at the **start** of each month.
 
 **F(t)** enters
 $\;Q_{\mathrm{open}} = \mathrm{clip}\!\bigl(Q_{\mathrm{open,base}} + \mu\, F(t)\,\ln(1+N_{\mathrm{open}}),\,0,\,1\bigr)$.
-So **k_F** scales how quickly $F(t)$ approaches $F_{\max}$ in calendar time $t$ (years).
+If $\varphi=0$, **$k_F^{\mathrm{eff}}=k_F$** always (legacy exogenous schedule).
 """
 
 Q_PLAT_BASE = r"""
@@ -192,20 +197,36 @@ $\;Q_{\mathrm{open}} = \mathrm{clip}\!\bigl(Q_{\mathrm{open,base}} + \mu F(t)\ln
 """
 
 F_MAX = r"""
-Ceiling on institutional maturity $F(t)$ as calendar time and **k_F** allow.
+Ceiling on institutional maturity $F(t)$ as calendar time and effective steepness allow.
 
 **Math**
 
-$\;F(t) = F_{\max}\,\sigma(k_F(t-t_{F,\mathrm{inflect}}))$, with $F\in[0,F_{\max}]$.
+$\;F(t) = F_{\max}\,\sigma(k_F^{\mathrm{eff}}(t-t_{F,\mathrm{inflect}}))$, with $F\in[0,F_{\max}]$ and
+$k_F^{\mathrm{eff}} = k_F(1+\varphi N_{\mathrm{open}})$.
 """
 
 T_F_INFLECTION = r"""
 Calendar time (years) around which commons institutions are halfway to their ceiling in the
-logistic sense.
+logistic sense (using $k_F^{\mathrm{eff}}$).
 
 **Math**
 
-$\;F(t) = F_{\max}\,\sigma(k_F(t-t_{F,\mathrm{inflect}}))$.
+$\;F(t) = F_{\max}\,\sigma(k_F^{\mathrm{eff}}(t-t_{F,\mathrm{inflect}}))$.
+"""
+
+K_F_OPEN_COUPLING = r"""
+**Supply-side / institutional funding loop (φ).** In the real world, FIDU-like institutions need
+**members, funding, and data to steward** to mature quickly—a **chicken-and-egg** with adoption.
+This slider makes the **logistic schedule** for $F(t)$ **steeper when $N_{\mathrm{open}}$ is larger**:
+more open users → faster institutional development → higher $Q_{\mathrm{open}}$ (together with the
+existing $\ln(1+N_{\mathrm{open}})$ term). If open adoption **stalls early**, institutions stay on a
+slow track unless calendar time alone saves them.
+
+**Math**
+
+$\;k_F^{\mathrm{eff}} = k_F\bigl(1 + \varphi\,N_{\mathrm{open}}\bigr)$ with $N_{\mathrm{open}}$ at month start.
+**φ = 0** recovers the old model (pure calendar-time $F$). Larger **φ** strengthens the
+**open adoption → F → quality → open adoption** feedback.
 """
 
 # --- Platform quality curve ---

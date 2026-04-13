@@ -184,6 +184,14 @@ with st.sidebar.expander("Institutional & commons (Q_open)", expanded=False):
     t_F_inflection = st.sidebar.slider(
         "t_F_inflection (years)", 1.0, 15.0, 5.0, 0.25, help=uh.T_F_INFLECTION
     )
+    k_F_open_coupling = st.sidebar.slider(
+        "φ — F speed scales with N_open (supply-side loop)",
+        0.0,
+        3.0,
+        1.0,
+        0.05,
+        help=uh.K_F_OPEN_COUPLING,
+    )
 
 with st.sidebar.expander("Platform quality curve", expanded=False):
     Q_plat_max = st.sidebar.slider(
@@ -405,6 +413,7 @@ params = ModelParams(
     mu=mu,
     F_max=F_max,
     k_F=k_F,
+    k_F_open_coupling=k_F_open_coupling,
     t_F_inflection=t_F_inflection,
     L_max=L_max,
     k_L=k_L,
@@ -508,7 +517,11 @@ Each type $i$ follows a **Bass diffusion** in continuous time with innovation $p
 
 #### 5. Latent dynamics (equations in code)
 
-**Institutions:** $F(t) = F_{max}\,\sigma\!\big(k_F (t - t_F^\*)\big)$.
+**Institutions:** with effective steepness $k_F^{\mathrm{eff}} = k_F\bigl(1 + \varphi\,N_{open}\bigr)$,
+$$
+F(t) = F_{max}\,\sigma\!\big(k_F^{\mathrm{eff}} (t - t_F^\*)\big).
+$$
+Set $\varphi=0$ for the legacy schedule (no dependence on open adoption); $\varphi>0$ makes institutional maturity **faster when the open ecosystem is larger** (funding, participation, stewardship scale).
 
 **Agent friction (open-side convenience):** $A(t) = A_{max}\big(1 - e^{-k_A t}\big)$ (exponential **saturation**, not a sigmoid).
 
@@ -596,6 +609,6 @@ Higher **leave-open cost** $\kappa^{O\to P}_i$ makes moving **to** the platform 
 - **$F, A, V, Q, L, E$:** show which **latent** forces are binding when the logit tilts toward one architecture.
 - **Monthly flows:** **New → open / platform** are arrivals only; **Switch →** bars are existing users moving architecture after arrivals.
 
-The **Commons institutional development speed** slider is **$k_F$** in $F(t)=F_{max}\,\sigma(k_F(t-t_F^\*))$: higher $k_F$ means institutions reach their curve **faster in calendar time**, raising $Q_{open}$ for a given $N_{open}$ and reshaping the utility gap **before** platform feedback fully runs away.
+The **Commons institutional development speed** slider is **$k_F$** in $F(t)=F_{max}\,\sigma(k_F^{\mathrm{eff}}(t-t_F^\*))$ with $k_F^{\mathrm{eff}}=k_F(1+\varphi N_{open})$: higher $k_F$ or $\varphi$ speeds institutions along the logistic, raising $Q_{open}$ and strengthening the **open adoption $\to$ institutions $\to$ quality** feedback when $\varphi>0$.
         """
     )

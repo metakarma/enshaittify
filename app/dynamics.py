@@ -32,6 +32,9 @@ class ModelParams:
     # F(t) institutional maturity
     F_max: float = 0.68
     k_F: float = 0.2
+    # Effective k_F = k_F * (1 + k_F_open_coupling * N_open): institutions mature faster when the
+    # open installed base is larger (funding, participation, data to steward). 0 = legacy exogenous F.
+    k_F_open_coupling: float = 1.0
     t_F_inflection: float = 5.0
 
     # Lock-in
@@ -64,8 +67,11 @@ class ModelParams:
     dominance_share_threshold: float = 0.49
 
 
-def institutional_maturity(t: float, params: ModelParams) -> float:
-    return params.F_max * sigmoid(params.k_F * (t - params.t_F_inflection))
+def institutional_maturity(t: float, N_open: float, params: ModelParams) -> float:
+    """Logistic F(t); steepness scales with open adoption when k_F_open_coupling > 0."""
+    n = max(float(N_open), 0.0)
+    k_eff = params.k_F * (1.0 + params.k_F_open_coupling * n)
+    return params.F_max * sigmoid(k_eff * (t - params.t_F_inflection))
 
 
 def agent_friction_reduction(t: float, params: ModelParams) -> float:
