@@ -1,5 +1,5 @@
-# Deploy to production: SSH to cmabot.app, pull, rebuild Docker image, recreate container.
-# Requires repo secret: DEPLOY_SSH_KEY (private key for root@cmabot.app)
+# Deploy to production: SSH to enshait.metakarma.org, pull, rebuild Docker image, recreate container.
+# Requires repo secret: DEPLOY_SSH_KEY (private key for root@enshait.metakarma.org)
 #
 # Skip for a specific commit: include [skip deploy] in the commit message.
 # Opt out entirely: disable or delete this workflow, or ask maintainers not to auto-deploy.
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-cmabot
+  group: deploy-enshait
   cancel-in-progress: true
 
 jobs:
@@ -29,9 +29,9 @@ jobs:
       - name: Trust host key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H cmabot.app >> ~/.ssh/known_hosts
+          ssh-keyscan -H enshait.metakarma.org >> ~/.ssh/known_hosts
 
       - name: Pull and restart container
         run: |
-          ssh -o IdentitiesOnly=yes root@cmabot.app \
+          ssh -o IdentitiesOnly=yes root@enshait.metakarma.org \
             'set -eux; cd /home/enshaittify && git pull origin main && docker compose build simulation && docker compose up -d simulation'

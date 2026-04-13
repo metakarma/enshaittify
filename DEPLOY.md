@@ -5,7 +5,7 @@
 | Item | Value |
 |------|--------|
 | **Public URL** | `https://enshait.metakarma.org` (NGINX → Streamlit) |
-| SSH host | `cmabot.app` (server hostname; not the app URL) |
+| SSH host | `enshait.metakarma.org` (same machine as legacy `cmabot.app` if DNS points there) |
 | User | `root` (SSH) |
 | App directory | `/home/enshaittify` |
 | Remote | `https://github.com/metakarma/enshaittify.git` |
@@ -18,7 +18,7 @@ The **Dockerfile** copies `app/` and `.streamlit/` into the image at build time.
 ## Manual deploy
 
 ```bash
-ssh root@cmabot.app
+ssh root@enshait.metakarma.org
 cd /home/enshaittify
 git pull origin main
 docker compose build simulation
@@ -28,7 +28,7 @@ docker compose up -d simulation
 One-liner:
 
 ```bash
-ssh root@cmabot.app 'cd /home/enshaittify && git pull origin main && docker compose build simulation && docker compose up -d simulation'
+ssh root@enshait.metakarma.org 'cd /home/enshaittify && git pull origin main && docker compose build simulation && docker compose up -d simulation'
 ```
 
 ## Automatic deploy (GitHub Actions)
