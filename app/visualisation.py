@@ -23,6 +23,25 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r},{g},{b},{alpha})"
 
 
+# Shared layout so side-by-side Sankeys share the same vertical scale for each consumer type.
+_SANKEY_HEIGHT = 420
+_SANKEY_MARGIN = dict(l=28, r=28, t=52, b=28)
+_SANKEY_X_LEFT = 0.02
+_SANKEY_X_RIGHT = 0.98
+_SANKEY_Y_PLATFORM = 0.5
+
+
+def _sankey_type_y_by_key(keys: List[str]) -> dict[str, float]:
+    """Map each type key to normalized y in [0.1, 0.9] (top = first key, bottom = last)."""
+    n = len(keys)
+    if n == 0:
+        return {}
+    if n == 1:
+        return {keys[0]: _SANKEY_Y_PLATFORM}
+    # Plotly y increases upward; put keys[0] at top of band for side-by-side alignment.
+    return {keys[i]: 0.9 - (0.8 * i / (n - 1)) for i in range(n)}
+
+
 def _axis_template():
     return dict(
         gridcolor="rgba(0,0,0,0.08)",
@@ -282,6 +301,7 @@ def fig_arrivals(df: pd.DataFrame) -> go.Figure:
 def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
     """Cumulative mass that switched open → platform, by consumer type."""
     keys = _arriving_type_keys(df)
+    y_by_key = _sankey_type_y_by_key(keys)
     pairs = [(k, float(df[f"switch_OtoP_{k}"].sum())) for k in keys if f"switch_OtoP_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
     if not pairs:
@@ -297,9 +317,9 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
         )
         fig.update_layout(
             title="Cumulative switchers: open → platform (by type)",
-            height=340,
+            height=_SANKEY_HEIGHT,
             template="plotly_white",
-            margin=dict(l=40, r=40, t=50, b=40),
+            margin=_SANKEY_MARGIN,
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
         )
@@ -309,19 +329,24 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
     sources = list(range(n_left))
     targets = [n_left] * n_left
     values = [v for _, v in pairs]
+    node_x = [_SANKEY_X_LEFT] * n_left + [_SANKEY_X_RIGHT]
+    node_y = [y_by_key[k] for k, _ in pairs] + [_SANKEY_Y_PLATFORM]
+    n_keys = max(len(keys), 1)
+    colors_left = [
+        f"rgba(46, 125, 50, {0.32 + 0.14 * (keys.index(k) / max(n_keys - 1, 1))})" for k, _ in pairs
+    ]
     fig = go.Figure(
         data=[
             go.Sankey(
-                arrangement="snap",
+                arrangement="fixed",
                 node=dict(
-                    pad=20,
-                    thickness=18,
+                    pad=16,
+                    thickness=16,
                     line=dict(color="#333", width=0.5),
                     label=labels,
-                    color=[
-                        *[f"rgba(46, 125, 50, {0.35 + 0.12 * i})" for i in range(n_left)],
-                        "rgba(198, 40, 40, 0.45)",
-                    ],
+                    x=node_x,
+                    y=node_y,
+                    color=colors_left + ["rgba(198, 40, 40, 0.45)"],
                 ),
                 link=dict(
                     source=sources,
@@ -334,10 +359,10 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
     )
     fig.update_layout(
         title="Cumulative switchers: open → platform (by type)",
-        height=400,
+        height=_SANKEY_HEIGHT,
         font=dict(size=12),
         template="plotly_white",
-        margin=dict(l=24, r=24, t=48, b=24),
+        margin=_SANKEY_MARGIN,
     )
     return fig
 
@@ -345,6 +370,7 @@ def fig_sankey_open_to_platform(df: pd.DataFrame) -> go.Figure:
 def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
     """Cumulative mass that switched platform → open, by consumer type."""
     keys = _arriving_type_keys(df)
+    y_by_key = _sankey_type_y_by_key(keys)
     pairs = [(k, float(df[f"switch_PtoO_{k}"].sum())) for k in keys if f"switch_PtoO_{k}" in df.columns]
     pairs = [(k, v) for k, v in pairs if v > 1e-15]
     if not pairs:
@@ -360,9 +386,9 @@ def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
         )
         fig.update_layout(
             title="Cumulative switchers: platform → open (by type)",
-            height=340,
+            height=_SANKEY_HEIGHT,
             template="plotly_white",
-            margin=dict(l=40, r=40, t=50, b=40),
+            margin=_SANKEY_MARGIN,
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
         )
@@ -374,17 +400,24 @@ def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
     sources = [0] * n_right
     targets = list(range(1, n_right + 1))
     values = [v for _, v in pairs]
+    node_x = [_SANKEY_X_LEFT] + [_SANKEY_X_RIGHT] * n_right
+    node_y = [_SANKEY_Y_PLATFORM] + [y_by_key[k] for k, _ in pairs]
+    n_keys = max(len(keys), 1)
+    colors_right = [
+        f"rgba(21, 101, 192, {0.32 + 0.14 * (keys.index(k) / max(n_keys - 1, 1))})" for k, _ in pairs
+    ]
     fig = go.Figure(
         data=[
             go.Sankey(
-                arrangement="snap",
+                arrangement="fixed",
                 node=dict(
-                    pad=20,
-                    thickness=18,
+                    pad=16,
+                    thickness=16,
                     line=dict(color="#333", width=0.5),
                     label=labels,
-                    color=["rgba(198, 40, 40, 0.45)"]
-                    + [f"rgba(21, 101, 192, {0.35 + 0.1 * i})" for i in range(n_right)],
+                    x=node_x,
+                    y=node_y,
+                    color=["rgba(198, 40, 40, 0.45)"] + colors_right,
                 ),
                 link=dict(
                     source=sources,
@@ -397,10 +430,10 @@ def fig_sankey_platform_to_open(df: pd.DataFrame) -> go.Figure:
     )
     fig.update_layout(
         title="Cumulative switchers: platform → open (by type)",
-        height=400,
+        height=_SANKEY_HEIGHT,
         font=dict(size=12),
         template="plotly_white",
-        margin=dict(l=24, r=24, t=48, b=24),
+        margin=_SANKEY_MARGIN,
     )
     return fig
 
